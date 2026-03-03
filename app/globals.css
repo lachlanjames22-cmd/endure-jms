@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ── Endure OS Design System ─────────────────────────────────── */
+
+@theme inline {
+  /* Backgrounds */
+  --color-bg-base:    #080808;
+  --color-bg-surface: #0c0c0c;
+  --color-bg-raised:  #111111;
+  --color-border:     #161616;
+  --color-border-mid: #222222;
+
+  /* Text */
+  --color-text-primary: #e8ddd0;
+  --color-text-muted:   #444444;
+  --color-text-subtle:  #2a2a2a;
+
+  /* Accent */
+  --color-gold:         #b8935a;
+  --color-gold-dim:     rgba(184, 147, 90, 0.15);
+
+  /* Traffic lights */
+  --color-green:        #4ade80;
+  --color-green-dim:    rgba(74, 222, 128, 0.10);
+  --color-amber:        #fbbf24;
+  --color-amber-dim:    rgba(251, 191, 36, 0.10);
+  --color-red:          #f87171;
+  --color-red-dim:      rgba(248, 113, 113, 0.10);
+
+  /* Fonts */
+  --font-heading: Georgia, 'Times New Roman', serif;
+  --font-body:    ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:    ui-monospace, 'Cascadia Code', monospace;
+}
+
+/* ── Base reset ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #080808;
+  color: #e8ddd0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography ───────────────────────────────────────────────── */
+h1, h2, h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #e8ddd0;
+  letter-spacing: -0.01em;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0c0c0c;
+}
+::-webkit-scrollbar-thumb {
+  background: #222222;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333333;
+}
+
+/* ── Recharts overrides ───────────────────────────────────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #111111 !important;
+  border: 1px solid #161616 !important;
+  border-radius: 6px !important;
+}
+
+/* ── Selection ────────────────────────────────────────────────── */
+::selection {
+  background: rgba(184, 147, 90, 0.3);
+  color: #e8ddd0;
+}
