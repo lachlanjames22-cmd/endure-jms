@@ -13,6 +13,8 @@ import {
   Bot,
   Settings,
   LogOut,
+  TrendingUp,
+  ShieldCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -32,8 +34,10 @@ const navItems: NavItem[] = [
   { href: '/finance',   label: 'Finance',     icon: DollarSign,      roles: ['owner', 'finance'] },
   { href: '/hr',        label: 'Team',        icon: Users,           roles: ['owner'] },
   { href: '/marketing', label: 'Marketing',   icon: Megaphone,       roles: ['owner'] },
-  { href: '/jarvis',    label: 'Jarvis',      icon: Bot,             roles: ['owner', 'ops', 'finance'] },
-  { href: '/settings',  label: 'Settings',    icon: Settings,        roles: ['owner'] },
+  { href: '/jarvis',     label: 'Jarvis',      icon: Bot,          roles: ['owner', 'ops', 'finance'] },
+  { href: '/ceo',        label: 'CEO',         icon: TrendingUp,   roles: ['owner'] },
+  { href: '/compliance', label: 'Compliance',  icon: ShieldCheck,  roles: ['owner'] },
+  { href: '/settings',   label: 'Settings',    icon: Settings,     roles: ['owner'] },
 ]
 
 interface SidebarProps {
@@ -75,9 +79,10 @@ export function Sidebar({ role }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors',
                 'justify-center lg:justify-start',
+                'border-r-2',
                 active
-                  ? 'bg-[#b8935a]/10 text-[#b8935a]'
-                  : 'text-[#444] hover:bg-[#111] hover:text-[#e8ddd0]'
+                  ? 'bg-[#b8935a]/10 text-[#b8935a] border-r-[#b8935a]'
+                  : 'text-[#444] hover:bg-[#111] hover:text-[#e8ddd0] border-r-transparent'
               )}
               title={label}
             >

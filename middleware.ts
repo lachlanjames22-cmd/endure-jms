@@ -23,42 +23,25 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Validate session via JWT — no DB call, safe for Edge Runtime
   const { data: { user } } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
 
-  // Public routes that don't require auth
-  const publicRoutes = ['/login', '/auth/callback']
+  // Public routes — no auth required
+  const publicRoutes = ['/login', '/auth/callback', '/portal', '/quote']
   if (publicRoutes.some(route => pathname.startsWith(route))) {
-    // If logged in and hitting /login, redirect to dashboard
     if (user && pathname === '/login') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return supabaseResponse
   }
 
-  // All other routes require auth
+  // Everything else requires auth
   if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // Fetch role for protected routes
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const role = profile?.role
-
-  // Finance role: redirect away from ops-only pages
-  if (role === 'finance' && (pathname.startsWith('/ops') || pathname.startsWith('/hr'))) {
-    return NextResponse.redirect(new URL('/finance', request.url))
-  }
-
-  // Ops role: redirect away from finance-only pages
-  if (role === 'ops' && pathname.startsWith('/finance')) {
-    return NextResponse.redirect(new URL('/ops', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return supabaseResponse

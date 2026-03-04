@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CashflowChart } from './cashflow-chart'
 import { GpDashboard } from './gp-dashboard'
+import { CashAllocation } from './cash-allocation'
 import { HeroMetrics } from '@/components/layout/hero-metrics'
 
 export default async function FinancePage() {
@@ -25,6 +26,7 @@ export default async function FinancePage() {
         <CashflowChart />
         <GpDashboard />
       </div>
+      <CashAllocation />
     </div>
   )
 }

@@ -92,12 +92,19 @@ Today: ${new Date().toLocaleDateString('en-AU', { weekday: 'long', year: 'numeri
 Standing instructions:
 ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}. ${i}`).join('\n')}`
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1024,
-    system: systemWithContext,
-    messages,
-  })
+  let response
+  try {
+    response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1024,
+      system: systemWithContext,
+      messages,
+    })
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'Unknown Anthropic error'
+    // Surface a readable error — most likely a missing or invalid ANTHROPIC_API_KEY
+    return NextResponse.json({ error: `Jarvis error: ${errMsg}` }, { status: 502 })
+  }
 
   const assistantContent = response.content[0].type === 'text'
     ? response.content[0].text

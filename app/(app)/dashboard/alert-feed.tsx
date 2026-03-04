@@ -16,6 +16,14 @@ export function AlertFeed() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  // Restore dismissed alerts from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('jarvis_dismissed_alerts')
+      if (saved) setDismissed(new Set(JSON.parse(saved)))
+    } catch { /* ignore */ }
+  }, [])
+
   useEffect(() => {
     fetch('/api/agent/context')
       .then(r => r.json())
@@ -84,7 +92,11 @@ export function AlertFeed() {
                 <p className="text-[#444] mt-0.5 leading-relaxed">{alert.body}</p>
               </div>
               <button
-                onClick={() => setDismissed(prev => new Set([...prev, alert.type]))}
+                onClick={() => setDismissed(prev => {
+                const next = new Set([...prev, alert.type])
+                try { localStorage.setItem('jarvis_dismissed_alerts', JSON.stringify([...next])) } catch { /* ignore */ }
+                return next
+              })}
                 className="text-[#2a2a2a] hover:text-[#444] shrink-0"
               >
                 ×

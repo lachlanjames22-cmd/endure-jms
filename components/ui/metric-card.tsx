@@ -42,8 +42,12 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        'relative rounded-lg border border-[#161616] bg-[#0c0c0c] p-4 transition-colors',
-        onClick && 'cursor-pointer hover:border-[#222] hover:bg-[#111]',
+        'relative rounded-lg border bg-[#0c0c0c] p-4 transition-colors',
+        traffic === 'green' && 'border-green-400/40 shadow-[0_0_14px_rgba(74,222,128,0.12)]',
+        traffic === 'amber' && 'border-amber-400/40 shadow-[0_0_14px_rgba(251,191,36,0.12)]',
+        traffic === 'red'   && 'border-red-400/40 shadow-[0_0_14px_rgba(248,113,113,0.18)]',
+        !traffic && 'border-[#161616]',
+        onClick && 'cursor-pointer hover:bg-[#111]',
         className
       )}
       onClick={onClick}

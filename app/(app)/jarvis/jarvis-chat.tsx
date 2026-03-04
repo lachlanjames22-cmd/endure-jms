@@ -50,11 +50,16 @@ export function JarvisChat({ initialHistory }: Props) {
       })
 
       const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error ${res.status}`)
+      }
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
-    } catch {
+    } catch (err) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Something went wrong. Check your ANTHROPIC_API_KEY in .env.local.',
+        content: err instanceof Error ? err.message : 'Something went wrong.',
       }])
     } finally {
       setLoading(false)
@@ -170,7 +175,11 @@ export function JarvisChat({ initialHistory }: Props) {
           <textarea
             ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => {
+              setInput(e.target.value)
+              e.target.style.height = 'auto'
+              e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px'
+            }}
             onKeyDown={handleKey}
             placeholder="Ask Jarvis anything about the business..."
             rows={1}
@@ -178,9 +187,9 @@ export function JarvisChat({ initialHistory }: Props) {
               'flex-1 resize-none rounded-xl border border-[#222] bg-[#111] px-4 py-3',
               'text-sm text-[#e8ddd0] placeholder:text-[#333]',
               'focus:outline-none focus:border-[#b8935a]/50',
-              'max-h-32 overflow-y-auto'
+              'overflow-y-auto'
             )}
-            style={{ minHeight: '44px' }}
+            style={{ minHeight: '44px', maxHeight: '128px' }}
           />
           <Button
             variant="primary"
