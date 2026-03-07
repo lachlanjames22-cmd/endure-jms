@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDateShort, cn } from '@/lib/utils'
 import { CheckCircle2, Plus, X } from 'lucide-react'

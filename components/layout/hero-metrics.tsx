@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { MetricCard } from '@/components/ui/metric-card'
 import { AlertTriangle, Pencil, Check } from 'lucide-react'
 import {
@@ -27,7 +27,7 @@ export function HeroMetrics() {
   const [balanceInput, setBalanceInput] = useState('')
   const [saving, setSaving]           = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const load = useCallback(async () => {
     const today = new Date()
