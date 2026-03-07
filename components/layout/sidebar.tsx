@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useJarvis } from '@/lib/jarvis-context'
 import type { UserRole } from '@/lib/types/database'
 
 interface NavItem {
@@ -34,10 +35,9 @@ const navItems: NavItem[] = [
   { href: '/finance',   label: 'Finance',     icon: DollarSign,      roles: ['owner', 'finance'] },
   { href: '/hr',        label: 'Team',        icon: Users,           roles: ['owner'] },
   { href: '/marketing', label: 'Marketing',   icon: Megaphone,       roles: ['owner'] },
-  { href: '/jarvis',     label: 'Jarvis',      icon: Bot,          roles: ['owner', 'ops', 'finance'] },
-  { href: '/ceo',        label: 'CEO',         icon: TrendingUp,   roles: ['owner'] },
-  { href: '/compliance', label: 'Compliance',  icon: ShieldCheck,  roles: ['owner'] },
-  { href: '/settings',   label: 'Settings',    icon: Settings,     roles: ['owner'] },
+  { href: '/ceo',       label: 'CEO',         icon: TrendingUp,      roles: ['owner'] },
+  { href: '/compliance',label: 'Compliance',  icon: ShieldCheck,     roles: ['owner'] },
+  { href: '/settings',  label: 'Settings',    icon: Settings,        roles: ['owner'] },
 ]
 
 interface SidebarProps {
@@ -45,9 +45,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ role }: SidebarProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
+  const pathname  = usePathname()
+  const router    = useRouter()
+  const supabase  = createClient()
+  const { toggle, open } = useJarvis()
 
   const visibleItems = navItems.filter(item => item.roles.includes(role))
 
@@ -93,10 +94,26 @@ export function Sidebar({ role }: SidebarProps) {
         })}
       </nav>
 
+      {/* Jarvis trigger — persistent OS button */}
+      <button
+        onClick={toggle}
+        className={cn(
+          'flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors',
+          'justify-center lg:justify-start w-full mb-1 border-r-2',
+          open
+            ? 'bg-[#b8935a]/10 text-[#b8935a] border-r-[#b8935a]'
+            : 'text-[#444] hover:bg-[#111] hover:text-[#b8935a] border-r-transparent'
+        )}
+        title="Jarvis"
+      >
+        <Bot className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:block">Jarvis</span>
+      </button>
+
       {/* Sign out */}
       <button
         onClick={signOut}
-        className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-[#444] hover:bg-[#111] hover:text-red-400 transition-colors justify-center lg:justify-start w-full"
+        className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-[#444] hover:bg-[#111] hover:text-red-400 transition-colors justify-center lg:justify-start w-full border-r-2 border-r-transparent"
         title="Sign out"
       >
         <LogOut className="h-4 w-4 shrink-0" />

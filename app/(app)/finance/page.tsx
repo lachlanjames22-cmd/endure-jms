@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { CashflowChart } from './cashflow-chart'
 import { GpDashboard } from './gp-dashboard'
 import { CashAllocation } from './cash-allocation'
+import { CashflowEvents } from './cashflow-events'
 import { HeroMetrics } from '@/components/layout/hero-metrics'
 
 export default async function FinancePage() {
@@ -24,9 +25,13 @@ export default async function FinancePage() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <CashflowChart />
-        <GpDashboard />
+        <CashflowEvents />
       </div>
-      <CashAllocation />
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <GpDashboard />
+        <CashAllocation />
+      </div>
     </div>
   )
 }

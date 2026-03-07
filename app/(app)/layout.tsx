@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/sidebar'
+import { JarvisPanel } from '@/components/layout/jarvis-panel'
+import { JarvisProvider } from '@/lib/jarvis-context'
 import type { UserRole } from '@/lib/types/database'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,11 +20,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const role = (profile?.role ?? 'ops') as UserRole
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#080808]">
-      <Sidebar role={role} />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+    <JarvisProvider>
+      <div className="flex h-screen overflow-hidden bg-[#080808]">
+        <Sidebar role={role} />
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+      <JarvisPanel />
+    </JarvisProvider>
   )
 }
