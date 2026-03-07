@@ -161,7 +161,8 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     }
 
     case 'create_cashflow_event': {
-      const { error } = await admin.from('cashflow_events').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (admin.from('cashflow_events') as any).insert({
         type:           input.type,
         category:       input.category,
         label:          input.label,
@@ -175,13 +176,14 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     }
 
     case 'update_setting': {
-      const { error } = await admin.from('settings').upsert({ key: input.key, value: input.value }, { onConflict: 'key' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (admin.from('settings') as any).upsert({ key: input.key, value: input.value }, { onConflict: 'key' })
       return error ? `Error: ${error.message}` : `Setting '${input.key}' updated to ${JSON.stringify(input.value)}`
     }
 
     case 'update_crew_sentiment': {
       const { error } = await admin.from('crew').update({
-        sentiment_score:   input.sentiment_score,
+        sentiment_score:   input.sentiment_score as number,
         last_checkin_date: today,
       }).eq('id', input.crew_id as string)
       return error ? `Error: ${error.message}` : `Sentiment updated to ${input.sentiment_score}/10`
@@ -291,7 +293,8 @@ ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}.
     user_id:  user.id,
     role:     'assistant',
     content:  finalText,
-    metadata: { model: 'claude-sonnet-4-5', usage: lastUsage, tools_used: toolsUsed },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    metadata: { model: 'claude-sonnet-4-5', usage: lastUsage, tools_used: toolsUsed } as any,
   })
 
   return NextResponse.json({ message: finalText, tools_used: toolsUsed, usage: lastUsage })

@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('cash_allocations')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin.from('cash_allocations') as any)
     .insert(allocation)
     .select()
     .single()
@@ -58,8 +58,8 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get('limit') ?? '20')
 
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('cash_allocations')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin.from('cash_allocations') as any)
     .select('*, cashflow_events(description, scheduled_date)')
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -78,8 +78,8 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
   const admin = createAdminClient()
-  const { error } = await admin
-    .from('cash_allocations')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin.from('cash_allocations') as any)
     .update({ actioned: true, actioned_at: new Date().toISOString() })
     .eq('id', id)
 

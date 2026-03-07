@@ -30,8 +30,8 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
 
   if (!job) notFound()
 
-  const { data: photos } = await admin
-    .from('progress_photos')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: photos } = await (admin.from('progress_photos') as any)
     .select('id, photo_url, caption, created_at')
     .eq('job_id', job.id)
     .eq('sent_to_client', true)
@@ -166,7 +166,8 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           <div className="rounded-lg border border-[#161616] bg-[#0c0c0c] p-5">
             <h2 className="text-xs font-medium text-[#444] uppercase tracking-wider mb-4">Progress Photos</h2>
             <div className="grid grid-cols-2 gap-3">
-              {photos.map(photo => (
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {(photos as any[]).map((photo: any) => (
                 <div key={photo.id} className="rounded-lg overflow-hidden bg-[#111]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

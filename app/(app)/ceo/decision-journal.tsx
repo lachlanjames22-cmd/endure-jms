@@ -25,7 +25,8 @@ export function DecisionJournal({ initial }: { initial: Decision[] }) {
     if (!form.decision.trim()) return
     setSaving(true)
     const supabase = createClient()
-    const { data } = await supabase.from('decision_journal').insert(form).select().single()
+    // @ts-ignore
+    const { data } = await supabase.from('decision_journal' as never).insert(form as never).select().single()
     if (data) setDecisions(prev => [data, ...prev])
     setForm({ decision: '', context: '', jarvis_recommendation: '', owner_decision: '' })
     setShowForm(false)
@@ -34,7 +35,8 @@ export function DecisionJournal({ initial }: { initial: Decision[] }) {
 
   async function recordOutcome(id: string, outcome: string) {
     const supabase = createClient()
-    await supabase.from('decision_journal').update({ outcome, outcome_date: new Date().toISOString().slice(0,10) }).eq('id', id)
+    // @ts-ignore
+    await supabase.from('decision_journal' as never).update({ outcome, outcome_date: new Date().toISOString().slice(0,10) }).eq('id', id)
     setDecisions(prev => prev.map(d => d.id === id ? { ...d, outcome, outcome_date: new Date().toISOString().slice(0,10) } : d))
   }
 

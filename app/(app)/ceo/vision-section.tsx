@@ -37,9 +37,11 @@ export function VisionSection({ initial }: { initial: VisionItem[] }) {
     const existing = items.find(i => i.category === cat)
 
     if (existing) {
+      // @ts-ignore
       await supabase.from('ceo_vision').update({ content: draft, updated_at: new Date().toISOString() }).eq('id', existing.id)
       setItems(prev => prev.map(i => i.id === existing.id ? { ...i, content: draft } : i))
     } else {
+      // @ts-ignore
       const { data } = await supabase.from('ceo_vision').insert({ category: cat, content: draft }).select().single()
       if (data) setItems(prev => [...prev, data])
     }

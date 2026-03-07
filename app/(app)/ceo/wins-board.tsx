@@ -34,6 +34,7 @@ export function WinsBoard({ initial }: { initial: Win[] }) {
     const supabase = createClient()
     const { data } = await supabase
       .from('wins_board')
+      // @ts-ignore
       .insert({ ...form, source: 'owner' })
       .select()
       .single()

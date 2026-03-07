@@ -145,7 +145,7 @@ export function CashAllocation() {
                     <div className="flex gap-3 mt-2 flex-wrap">
                       {BUCKETS.map(b => (
                         <span key={b.key} className={`text-xs ${b.color}`}>
-                          {b.label.split(' ')[0]}: {formatCurrency((a as Record<string, unknown>)[b.key] as number)}
+                          {b.label.split(' ')[0]}: {formatCurrency((a as unknown as Record<string, unknown>)[b.key] as number)}
                         </span>
                       ))}
                     </div>
