@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
+import type { JobStatus, CashflowType, CashflowCategory } from '@/lib/types/database'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -149,7 +150,7 @@ async function executeTool(
 
   switch (toolName) {
     case 'update_job_status': {
-      const { job_id, status } = toolInput as { job_id: string; status: string }
+      const { job_id, status } = toolInput as { job_id: string; status: JobStatus }
       const { error } = await admin.from('jobs').update({ status }).eq('id', job_id)
       if (error) return `Error updating job status: ${error.message}`
       return `Job ${job_id} status updated to "${status}".`
@@ -176,7 +177,7 @@ async function executeTool(
     case 'add_cashflow_event': {
       const { error, data } = await admin
         .from('cashflow_events')
-        .insert(toolInput)
+        .insert(toolInput as { type: CashflowType; category: CashflowCategory; label: string; amount: number; scheduled_date: string; job_id?: string; paid_date?: string })
         .select('id, label')
         .single()
       if (error) return `Error adding cashflow event: ${error.message}`
