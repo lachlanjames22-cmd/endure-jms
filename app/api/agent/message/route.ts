@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
-import type { JobStatus, CashflowType, CashflowCategory } from '@/lib/types/database'
+import type { JobStatus, CashflowType, CashflowCategory, Json } from '@/lib/types/database'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -158,7 +158,13 @@ async function executeTool(
 
     case 'set_job_dates': {
       const { job_id, ...dates } = toolInput as { job_id: string; [key: string]: string | undefined }
-      const cleanDates = Object.fromEntries(Object.entries(dates).filter(([, v]) => v !== undefined))
+      type JobDateUpdate = {
+        start_date?: string | null
+        materials_delivery_date?: string | null
+        subframe_complete_date?: string | null
+        completion_date?: string | null
+      }
+      const cleanDates = Object.fromEntries(Object.entries(dates).filter(([, v]) => v !== undefined)) as JobDateUpdate
       const { error } = await admin.from('jobs').update(cleanDates).eq('id', job_id)
       if (error) return `Error setting job dates: ${error.message}`
       return `Job ${job_id} dates updated: ${Object.entries(cleanDates).map(([k, v]) => `${k}=${v}`).join(', ')}.`
@@ -185,7 +191,7 @@ async function executeTool(
     }
 
     case 'update_settings': {
-      const { key, value } = toolInput as { key: string; value: unknown }
+      const { key, value } = toolInput as { key: string; value: Json }
       const { error } = await admin.from('settings').update({ value }).eq('key', key)
       if (error) return `Error updating setting: ${error.message}`
       return `Setting "${key}" updated to ${JSON.stringify(value)}.`
