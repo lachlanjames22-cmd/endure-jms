@@ -237,6 +237,8 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
+  try {
+
   // Fetch full business context
   const contextRes = await fetch(`${req.nextUrl.origin}/api/agent/context`, {
     headers: { cookie: req.headers.get('cookie') ?? '' },
@@ -344,4 +346,10 @@ ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}.
     message: assistantContent,
     tools_used: toolsUsed.length > 0 ? toolsUsed : undefined,
   })
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[Jarvis] error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }

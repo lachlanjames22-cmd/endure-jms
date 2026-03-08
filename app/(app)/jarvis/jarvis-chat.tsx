@@ -50,11 +50,20 @@ export function JarvisChat({ initialHistory }: Props) {
       })
 
       const data = await res.json()
+
+      if (!res.ok) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Error ${res.status}: ${data.error ?? 'Unknown error from Jarvis API.'}`,
+        }])
+        return
+      }
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
-    } catch {
+    } catch (err) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Something went wrong. Check your ANTHROPIC_API_KEY in .env.local.',
+        content: `Network error — could not reach Jarvis. ${err instanceof Error ? err.message : ''}`,
       }])
     } finally {
       setLoading(false)
