@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { OpeningBalanceEditor } from './opening-balance-editor'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -11,12 +12,19 @@ export default async function SettingsPage() {
 
   const { data: settings } = await supabase.from('settings').select('*').order('key')
 
+  const openingBalance = Number(
+    settings?.find(s => s.key === 'opening_balance')?.value ?? 0
+  )
+
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-['Georgia',serif] text-[#e8ddd0]">Settings</h1>
         <p className="text-sm text-[#444] mt-1">Business config and integrations</p>
       </div>
+
+      {/* Opening balance — editable */}
+      <OpeningBalanceEditor initialValue={openingBalance} />
 
       {/* Environment variables status */}
       <div className="rounded-lg border border-[#161616] bg-[#0c0c0c] p-5">
