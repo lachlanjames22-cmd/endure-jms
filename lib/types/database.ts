@@ -1,10 +1,12 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type UserRole = 'owner' | 'ops' | 'finance'
-export type JobStatus = 'quoted' | 'won' | 'scheduled' | 'in_progress' | 'complete' | 'lost'
+export type JobStatus = 'quoted' | 'won' | 'scheduled' | 'in_progress' | 'complete' | 'lost' | 'lead' | 'quoted_os' | 'scheduled_os' | 'active' | 'invoiced'
 export type JWTier = 'red' | 'black' | 'blue'
+export type JWLabel = 'red' | 'black' | 'blue'
 export type InstallType = 'fullSubframe' | 'overConcrete' | 'redeck'
 export type CrewType = 'full_time' | 'casual' | 'subby' | 'experiment'
+export type EmploymentType = 'fulltime' | 'casual' | 'abn'
 export type PayCycle = 'weekly' | 'fortnightly' | 'invoice'
 export type CashflowType = 'inflow' | 'outflow'
 export type CashflowCategory =
@@ -17,6 +19,22 @@ export type CashflowCategory =
   | 'opex'
   | 'tax'
   | 'adhoc'
+  | 'payment'
+  | 'other'
+export type JobType = 'deck' | 'pergola' | 'deck_pergola' | 'stairs' | 'reno'
+export type JobStage = 'before' | 'frame' | 'deck' | 'complete'
+export type PFAccountName = 'transactions' | 'tax' | 'reserve' | 'profit'
+export type PhotoStage = 'before' | 'frame' | 'deck' | 'complete'
+export type CheckinVibe = 1 | 2 | 3 | 4 | 5
+export type DecisionOutcome = 'pending' | 'correct' | 'incorrect' | 'n/a'
+export type MaterialStatus = 'on_site' | 'needed' | 'ordered'
+
+export interface PFAllocation {
+  tax: number
+  profit: number
+  reserve: number
+  transactions: number
+}
 
 export interface Database {
   public: {
@@ -83,6 +101,9 @@ export interface Database {
           active: boolean
           sentiment_score: number | null
           last_checkin_date: string | null
+          phone: string | null
+          employment_type: EmploymentType | null
+          auth_user_id: string | null
           deleted_at: string | null
           created_at: string
           updated_at: string
@@ -97,6 +118,9 @@ export interface Database {
           active?: boolean
           sentiment_score?: number | null
           last_checkin_date?: string | null
+          phone?: string | null
+          employment_type?: EmploymentType | null
+          auth_user_id?: string | null
         }
         Update: Partial<Database['public']['Tables']['crew']['Insert']>
         Relationships: []
@@ -288,6 +312,9 @@ export interface Database {
           scheduled_date: string
           paid_date: string | null
           auto_generated: boolean
+          pf_allocation: PFAllocation | null
+          recurring: boolean
+          recur_rule: 'fortnightly_tuesday' | 'monthly_1st' | null
           created_at: string
           updated_at: string
         }
@@ -300,6 +327,9 @@ export interface Database {
           scheduled_date: string
           paid_date?: string | null
           auto_generated?: boolean
+          pf_allocation?: PFAllocation | null
+          recurring?: boolean
+          recur_rule?: 'fortnightly_tuesday' | 'monthly_1st' | null
         }
         Update: Partial<Database['public']['Tables']['cashflow_events']['Insert']>
         Relationships: [
@@ -311,6 +341,249 @@ export interface Database {
             referencedColumns: ["id"]
           }
         ]
+      }
+      job_labour: {
+        Row: {
+          id: string
+          job_id: string
+          crew_id: string
+          date: string
+          hours: number
+          rate_loaded: number
+          cost: number  // generated
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          job_id: string
+          crew_id: string
+          date: string
+          hours: number
+          rate_loaded: number
+          notes?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['job_labour']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: "job_labour_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_labour_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crew"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      job_materials: {
+        Row: {
+          id: string
+          job_id: string
+          item: string
+          qty: string | null
+          cost: number | null
+          supplier: string | null
+          status: MaterialStatus
+          date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          job_id: string
+          item: string
+          qty?: string | null
+          cost?: number | null
+          supplier?: string | null
+          status?: MaterialStatus
+          date?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['job_materials']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: "job_materials_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      pf_accounts: {
+        Row: {
+          id: string
+          name: PFAccountName
+          balance: number
+          updated_at: string
+        }
+        Insert: {
+          name: PFAccountName
+          balance?: number
+        }
+        Update: { balance?: number }
+        Relationships: []
+      }
+      daily_logs: {
+        Row: {
+          id: string
+          job_id: string
+          crew_id: string
+          date: string
+          progress: string | null
+          materials: string | null
+          issues: string | null
+          hrs_logged: number | null
+          created_at: string
+        }
+        Insert: {
+          job_id: string
+          crew_id: string
+          date: string
+          progress?: string | null
+          materials?: string | null
+          issues?: string | null
+          hrs_logged?: number | null
+        }
+        Update: Partial<Database['public']['Tables']['daily_logs']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: "daily_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crew"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      photos: {
+        Row: {
+          id: string
+          job_id: string
+          crew_id: string | null
+          stage: PhotoStage | null
+          label: string | null
+          storage_path: string
+          sent_client: boolean
+          sent_at: string | null
+          uploaded_at: string
+        }
+        Insert: {
+          job_id: string
+          crew_id?: string | null
+          stage?: PhotoStage | null
+          label?: string | null
+          storage_path: string
+          sent_client?: boolean
+        }
+        Update: {
+          stage?: PhotoStage | null
+          label?: string | null
+          sent_client?: boolean
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      checkin_responses: {
+        Row: {
+          id: string
+          job_id: string
+          crew_id: string
+          date: string
+          vibe: CheckinVibe
+          callback_risk: boolean
+          note: string | null
+          next_needs: string | null
+          streak_contribution: boolean  // generated
+          created_at: string
+        }
+        Insert: {
+          job_id: string
+          crew_id: string
+          date: string
+          vibe: CheckinVibe
+          callback_risk?: boolean
+          note?: string | null
+          next_needs?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['checkin_responses']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: "checkin_responses_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkin_responses_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crew"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      decisions: {
+        Row: {
+          id: string
+          date: string
+          decision: string
+          options: string | null
+          rationale: string | null
+          outcome: DecisionOutcome
+          created_at: string
+        }
+        Insert: {
+          date?: string
+          decision: string
+          options?: string | null
+          rationale?: string | null
+          outcome?: DecisionOutcome
+        }
+        Update: Partial<Database['public']['Tables']['decisions']['Insert']>
+        Relationships: []
+      }
+      personal_finance: {
+        Row: {
+          id: string
+          home_value: number
+          mortgage_remaining: number
+          home_equity: number  // generated
+          move_target: number
+          ip_target: number
+          cash_savings: number
+          business_equity: number
+          updated_at: string
+        }
+        Insert: {
+          home_value?: number
+          mortgage_remaining?: number
+          move_target?: number
+          ip_target?: number
+          cash_savings?: number
+          business_equity?: number
+        }
+        Update: Partial<Database['public']['Tables']['personal_finance']['Insert']>
+        Relationships: []
       }
       settings: {
         Row: {
@@ -465,6 +738,15 @@ export interface Database {
         Args: Record<string, never>
         Returns: Json
       }
+      allocate_profit_first: {
+        Args: {
+          p_job_id: string
+          p_amount: number
+          p_label: string
+          p_event_date: string
+        }
+        Returns: Json
+      }
     }
   }
 }
@@ -483,3 +765,12 @@ export type Notification = Database['public']['Tables']['notifications']['Row']
 export type ConversationMessage = Database['public']['Tables']['conversation_history']['Row']
 export type QuoteLineItem = Database['public']['Tables']['quote_line_items']['Row']
 export type AdPerformance = Database['public']['Tables']['ad_performance']['Row']
+// Endure OS types
+export type JobLabour = Database['public']['Tables']['job_labour']['Row']
+export type JobMaterial = Database['public']['Tables']['job_materials']['Row']
+export type PFAccount = Database['public']['Tables']['pf_accounts']['Row']
+export type DailyLog = Database['public']['Tables']['daily_logs']['Row']
+export type Photo = Database['public']['Tables']['photos']['Row']
+export type CheckinResponse = Database['public']['Tables']['checkin_responses']['Row']
+export type Decision = Database['public']['Tables']['decisions']['Row']
+export type PersonalFinance = Database['public']['Tables']['personal_finance']['Row']
