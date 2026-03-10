@@ -13,6 +13,9 @@ import {
   Bot,
   Settings,
   LogOut,
+  CalendarDays,
+  Calculator,
+  ClipboardList,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -26,14 +29,17 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard',  icon: LayoutDashboard, roles: ['owner', 'ops', 'finance'] },
-  { href: '/sales',     label: 'Sales',       icon: FileText,        roles: ['owner', 'ops'] },
-  { href: '/ops',       label: 'Ops',         icon: Wrench,          roles: ['owner', 'ops'] },
-  { href: '/finance',   label: 'Finance',     icon: DollarSign,      roles: ['owner', 'finance'] },
-  { href: '/hr',        label: 'Team',        icon: Users,           roles: ['owner'] },
-  { href: '/marketing', label: 'Marketing',   icon: Megaphone,       roles: ['owner'] },
-  { href: '/jarvis',    label: 'Jarvis',      icon: Bot,             roles: ['owner', 'ops', 'finance'] },
-  { href: '/settings',  label: 'Settings',    icon: Settings,        roles: ['owner'] },
+  { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, roles: ['owner', 'ops', 'finance'] },
+  { href: '/planner',      label: 'Planner',      icon: CalendarDays,    roles: ['owner', 'ops'] },
+  { href: '/quote',        label: 'Business Engine', icon: Calculator,   roles: ['owner', 'finance'] },
+  { href: '/job-costing',  label: 'Job Costing',  icon: ClipboardList,   roles: ['owner', 'ops'] },
+  { href: '/sales',        label: 'Sales',        icon: FileText,        roles: ['owner', 'ops'] },
+  { href: '/ops',          label: 'Ops',          icon: Wrench,          roles: ['owner', 'ops'] },
+  { href: '/finance',      label: 'Finance',      icon: DollarSign,      roles: ['owner', 'finance'] },
+  { href: '/hr',           label: 'Team',         icon: Users,           roles: ['owner'] },
+  { href: '/marketing',    label: 'Marketing',    icon: Megaphone,       roles: ['owner'] },
+  { href: '/jarvis',       label: 'Jarvis',       icon: Bot,             roles: ['owner', 'ops', 'finance'] },
+  { href: '/settings',     label: 'Settings',     icon: Settings,        roles: ['owner'] },
 ]
 
 interface SidebarProps {

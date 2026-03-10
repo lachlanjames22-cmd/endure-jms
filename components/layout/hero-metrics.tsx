@@ -22,10 +22,10 @@ interface HeroData {
 
 export function HeroMetrics() {
   const [data, setData] = useState<HeroData | null>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     async function load() {
+      const supabase = createClient()
       const today = new Date()
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
 
