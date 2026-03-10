@@ -16,6 +16,7 @@ import {
   CalendarDays,
   Calculator,
   ClipboardList,
+  Dna,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { href: '/planner',      label: 'Planner',      icon: CalendarDays,    roles: ['owner', 'ops'] },
   { href: '/quote',        label: 'Business Engine', icon: Calculator,   roles: ['owner', 'finance'] },
   { href: '/job-costing',  label: 'Job Costing',  icon: ClipboardList,   roles: ['owner', 'ops'] },
+  { href: '/job-dna',      label: 'Job DNA',      icon: Dna,             roles: ['owner'] },
   { href: '/sales',        label: 'Sales',        icon: FileText,        roles: ['owner', 'ops'] },
   { href: '/ops',          label: 'Ops',          icon: Wrench,          roles: ['owner', 'ops'] },
   { href: '/finance',      label: 'Finance',      icon: DollarSign,      roles: ['owner', 'finance'] },
