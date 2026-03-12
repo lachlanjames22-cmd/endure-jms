@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import React, { useState } from "react";
 // ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
 const C = {
   bg:        "#0e0e14",
