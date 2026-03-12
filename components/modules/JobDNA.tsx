@@ -223,7 +223,7 @@ function PatternInsights({ jobs }: { jobs: Job[] }) {
     const avgDNA  = avg(jbs.map(j => avg(DNA_DIMS.map(d => j.dna[d.key as keyof DNAScore]))));
     const worstDim = DNA_DIMS.map(d => ({ d, avgVal: avg(jbs.map(j => j.dna[d.key as keyof DNAScore])) })).sort((a,b) => a.avgVal - b.avgVal)[0];
     return { lbl, count: jbs.length, avgNP, hitRate, avgDNA, worstDim };
-  }).filter(Boolean) as NonNullable<ReturnType<typeof Object.entries<Job[]>[0]>>[];
+  }).filter(Boolean) as Array<{ lbl: string; count: number; avgNP: number; hitRate: number; avgDNA: number; worstDim: { d: typeof DNA_DIMS[0]; avgVal: number } }>;
   const hourBleeders = jobs.filter(j => j.actualHours && j.quotedHours && parseFloat(String(j.actualHours)) > j.quotedHours * 1.1);
   const suburbMap: Record<string, { jobs: number; totalNP: number }> = {};
   jobs.forEach(j => {

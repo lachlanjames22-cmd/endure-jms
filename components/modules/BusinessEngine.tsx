@@ -38,31 +38,31 @@ const DEFAULT_EXPENSES = [
 ];
 const DEFAULT_DAYS = { totalDays: 365, weekendDays: 104, publicHolidays: 13, annualLeave: 20, sickDays: 10, rainDays: 12 };
 const TABS = ["P&L", "Expenses", "Crew", "Days", "Combos", "CEO"];
-function fmt(n) {
+function fmt(n: number) {
   if (n === undefined || n === null || isNaN(n)) return "$0";
   const abs = Math.abs(n);
   return (n < 0 ? "-$" : "$") + Math.round(abs).toLocaleString();
 }
-function fmtPct(n, d = 1) { return isNaN(n) ? "0%" : n.toFixed(d) + "%"; }
-function tl(v, good, warn) { return v >= good ? GREEN : v >= warn ? AMBER : RED; }
-function Mono({ children, style = {} }) {
+function fmtPct(n: number, d = 1) { return isNaN(n) ? "0%" : n.toFixed(d) + "%"; }
+function tl(v: number, good: number, warn: number) { return v >= good ? GREEN : v >= warn ? AMBER : RED; }
+function Mono({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return <span style={{ fontFamily: "'DM Mono', monospace", ...style }}>{children}</span>;
 }
-function SectionTitle({ children, color = GOLD }) {
+function SectionTitle({ children, color = GOLD }: { children: React.ReactNode; color?: string }) {
   return <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "10px", color, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "18px", paddingBottom: "10px", borderBottom: `1px solid ${BORDER}` }}>{children}</div>;
 }
-function Card({ children, style = {} }) {
+function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return <div style={{ background: SURFACE, border: `1px solid ${BORDER2}`, padding: "24px", ...style }}>{children}</div>;
 }
-function AnimNum({ value, color = TEXT, size = "26px" }) {
+function AnimNum({ value, color = TEXT, size = "26px" }: { value: number; color?: string; size?: string }) {
   const [display, setDisplay] = useState(value);
   const prev = useRef(value);
   useEffect(() => {
     const diff = value - prev.current;
     if (Math.abs(diff) < 1) { setDisplay(value); return; }
-    let start = null;
+    let start: number | null = null;
     const from = prev.current;
-    function step(ts) {
+    function step(ts: number) {
       if (!start) start = ts;
       const p = Math.min((ts - start) / 380, 1);
       const ease = 1 - Math.pow(1 - p, 3);
@@ -76,7 +76,7 @@ function AnimNum({ value, color = TEXT, size = "26px" }) {
   const str = display < 0 ? `-$${Math.round(Math.abs(display)).toLocaleString()}` : `$${Math.round(Math.abs(display)).toLocaleString()}`;
   return <span style={{ fontFamily: "'DM Mono', monospace", fontSize: size, color, fontWeight: "500", letterSpacing: "-0.5px", transition: "color 0.3s" }}>{str}</span>;
 }
-function WaterfallRow({ label, value, total, color, indent = false, bold = false, divider = false }) {
+function WaterfallRow({ label, value, total, color, indent = false, bold = false, divider = false }: { label: string; value: number; total: number; color: string; indent?: boolean; bold?: boolean; divider?: boolean }) {
   const pct = Math.min(100, Math.abs(value / total) * 100);
   return (
     <div style={{ marginBottom: divider ? "14px" : "7px", paddingBottom: divider ? "14px" : "0", borderBottom: divider ? `1px solid ${BORDER}` : "none" }}>
@@ -120,7 +120,7 @@ export default function BusinessEngine() {
   const dailyCOPS = totalCOPS / daysPerMonth;
   const rateForNP = dailyCOPS / (1 - npTarget / 100);
   const inputStyle = { background: SURFACE2, border: `1px solid ${BORDER2}`, color: TEXT, padding: "7px 10px", fontFamily: "'DM Mono', monospace", fontSize: "14px", outline: "none", width: "100%" };
-  const smallInput = { background: "transparent", border: `1px solid ${BORDER}`, color: TEXT, padding: "5px 8px", fontFamily: "'DM Mono', monospace", fontSize: "13px", outline: "none", textAlign: "right" };
+  const smallInput: React.CSSProperties = { background: "transparent", border: `1px solid ${BORDER}`, color: TEXT, padding: "5px 8px", fontFamily: "'DM Mono', monospace", fontSize: "13px", outline: "none", textAlign: "right" };
   return (
     <div style={{ background: BG, minHeight: "100vh", color: TEXT, fontFamily: "'Georgia', serif" }}>
       <style>{`
@@ -264,7 +264,7 @@ export default function BusinessEngine() {
                       <Mono style={{ fontSize: "12px", color: TEXT_DIM, textAlign: "right" }}>{exp.amount ? fmt(exp.amount * 12) : "—"}</Mono>
                       <button onClick={() => setExpenses(p => p.filter(x => x.id !== exp.id))}
                         style={{ background: "transparent", border: "none", color: TEXT_DIM, cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "2px", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5 }}
-                        onMouseEnter={e => e.target.style.opacity = 1} onMouseLeave={e => e.target.style.opacity = 0.5}>
+                        onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = "1"} onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = "0.5"}>
                         ×
                       </button>
                     </div>
@@ -375,8 +375,8 @@ export default function BusinessEngine() {
               {[{ l: "Total Calendar Days", f: "totalDays", ro: true }, { l: "Weekend Days", f: "weekendDays" }, { l: "Public Holidays", f: "publicHolidays" }, { l: "Annual Leave", f: "annualLeave" }, { l: "Sick Days", f: "sickDays" }, { l: "Rain / Shutdown Days", f: "rainDays" }].map(row => (
                 <div key={row.f} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderBottom: `1px solid ${BORDER}` }}>
                   <span style={{ fontSize: "13px", color: row.ro ? TEXT_DIM : TEXT }}>{row.l}</span>
-                  {row.ro ? <Mono style={{ fontSize: "14px", color: TEXT_DIM }}>{days[row.f]}</Mono>
-                    : <input type="number" value={days[row.f]} onChange={e => setDays(p => ({ ...p, [row.f]: parseInt(e.target.value) || 0 }))} style={{ ...smallInput, width: "78px" }} />}
+                  {row.ro ? <Mono style={{ fontSize: "14px", color: TEXT_DIM }}>{(days as Record<string,number>)[row.f]}</Mono>
+                    : <input type="number" value={(days as Record<string,number>)[row.f]} onChange={e => setDays(p => ({ ...p, [row.f]: parseInt(e.target.value) || 0 }))} style={{ ...smallInput, width: "78px" }} />}
                 </div>
               ))}
               <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "14px" }}>
@@ -453,7 +453,7 @@ export default function BusinessEngine() {
     </div>
   );
 }
-function CEOModule({ revenue, netProfit, npPct, npTarget, jobsPerMonth, targetJobs, avgJobValue, directLabour, ownerMonthly, totalOpex }) {
+function CEOModule({ revenue, netProfit, npPct, npTarget, jobsPerMonth, targetJobs, avgJobValue, directLabour, ownerMonthly, totalOpex }: { revenue: number; netProfit: number; npPct: number; npTarget: number; jobsPerMonth: number; targetJobs: number; avgJobValue: number; directLabour: number; ownerMonthly: number; totalOpex: number }) {
   const [timeAudit, setTimeAudit] = useState({ tools: 70, ops: 20, strategy: 10 });
   const [wins, setWins] = useState([
     { id: 1, text: "Landed the Applecross job at full margin", date: "Feb 2026" },
@@ -502,7 +502,7 @@ function CEOModule({ revenue, netProfit, npPct, npTarget, jobsPerMonth, targetJo
             { key: "ops", label: "Operations", target: 40, desc: "Quoting, admin, scheduling", color: GOLD },
             { key: "strategy", label: "Strategy / CEO", target: 30, desc: "Growth, systems, culture", color: GREEN },
           ].map(row => {
-            const val = timeAudit[row.key];
+            const val = (timeAudit as Record<string,number>)[row.key];
             const onTrack = row.key === "tools" ? val <= row.target : val >= row.target;
             return (
               <div key={row.key} style={{ marginBottom: "16px" }}>
