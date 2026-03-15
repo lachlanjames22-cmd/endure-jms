@@ -72,8 +72,9 @@ export function SetupWizard({ userId }: { userId: string }) {
     setData(d => ({ ...d, [key]: val }))
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function upsertSetting(key: string, value: unknown) {
-    return supabase.from('settings').upsert({ key, value })
+    return supabase.from('settings').upsert({ key, value: value as any })
   }
 
   async function saveStep() {
