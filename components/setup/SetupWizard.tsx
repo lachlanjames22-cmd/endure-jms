@@ -126,8 +126,8 @@ export function SetupWizard({ userId }: { userId: string }) {
               suburb: j.suburb.trim(),
               quoted_total_value: parseFloat(j.value) || 0,
               quoted_labour_value: Math.round((parseFloat(j.value) || 0) * 0.55),
-              status: j.status,
-              jw_tier: 'red',
+              status: (j.status || 'quoted') as import('@/lib/types/database').JobStatus,
+              jw_tier: 'red' as import('@/lib/types/database').JWTier,
             }))
           )
         }
