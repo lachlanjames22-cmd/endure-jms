@@ -107,14 +107,25 @@ Today: ${new Date().toLocaleDateString('en-AU', { weekday: 'long', year: 'numeri
     reply = response.content[0].type === 'text' ? response.content[0].text : 'Something went wrong — try again.'
 
     // Save to conversation history with WhatsApp channel tag
+    // Look up owner user_id (required field) — WhatsApp has no session
+    const { data: ownerProfile } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'owner')
+      .limit(1)
+      .single()
+    const ownerId = ownerProfile?.id ?? ''
+
     await admin.from('conversation_history').insert([
       {
-        role: 'user',
+        user_id: ownerId,
+        role: 'user' as const,
         content: body,
         metadata: { channel: 'whatsapp', phone },
       },
       {
-        role: 'assistant',
+        user_id: ownerId,
+        role: 'assistant' as const,
         content: reply,
         metadata: { channel: 'whatsapp', phone, model: response.model },
       },
