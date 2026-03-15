@@ -100,10 +100,10 @@ export function SetupWizard({ userId }: { userId: string }) {
           await supabase.from('crew').insert(
             validCrew.map(c => ({
               name: c.name.trim(),
-              type: c.type,
+              type: (c.type || 'casual') as import('@/lib/types/database').CrewType,
               loaded_rate: parseFloat(c.loadedRate) || 0,
               base_rate: Math.round((parseFloat(c.loadedRate) || 0) / 1.15),
-              pay_cycle: c.type === 'subby' ? 'invoice' : 'fortnightly',
+              pay_cycle: (c.type === 'subby' ? 'invoice' : 'fortnightly') as import('@/lib/types/database').PayCycle,
               active: true,
             }))
           )
