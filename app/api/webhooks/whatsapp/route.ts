@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
       type: 'whatsapp_unknown',
       title: 'Unknown WhatsApp sender',
       body: `Message from ${phone}: ${body.slice(0, 100)}`,
+      role: 'owner' as const,
       read: false,
     }).catch(() => {}) // non-fatal
 
