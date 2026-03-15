@@ -74,7 +74,7 @@ export function SetupWizard({ userId }: { userId: string }) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function upsertSetting(key: string, value: unknown) {
-    return supabase.from('settings').upsert({ key, value: value as any })
+    return supabase.from('settings').upsert({ key, value: value as any }, { onConflict: 'key' })
   }
 
   async function saveStep() {
@@ -442,14 +442,18 @@ export function SetupWizard({ userId }: { userId: string }) {
         <p style={{ fontSize: '14px', color: C.textDim, lineHeight: 1.7, marginBottom: '32px' }}>
           I'm going to give you your first morning brief now. It'll be waiting for you in Jarvis.
         </p>
-        <button
-          onClick={() => router.push('/jarvis')}
-          style={{ background: C.gold, color: C.bg, border: 'none', fontFamily: "'DM Mono',monospace", fontSize: '11px', padding: '14px 32px', cursor: 'pointer', letterSpacing: '0.15em' }}>
-          OPEN JARVIS →
-        </button>
-        <p style={{ fontFamily: "'DM Mono',monospace", fontSize: '9px', color: C.textDim, marginTop: '16px' }}>
-          or go to <a href="/dashboard" style={{ color: C.gold, textDecoration: 'none' }}>Dashboard</a>
-        </p>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => router.push('/jarvis')}
+            style={{ background: C.gold, color: C.bg, border: 'none', fontFamily: "'DM Mono',monospace", fontSize: '11px', padding: '14px 32px', cursor: 'pointer', letterSpacing: '0.15em' }}>
+            OPEN JARVIS →
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            style={{ background: 'transparent', border: `1px solid ${C.border2}`, color: C.textDim, fontFamily: "'DM Mono',monospace", fontSize: '11px', padding: '14px 32px', cursor: 'pointer', letterSpacing: '0.15em' }}>
+            DASHBOARD
+          </button>
+        </div>
       </div>
     )
   }

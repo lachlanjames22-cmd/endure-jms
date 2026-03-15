@@ -22,6 +22,7 @@ import {
   Crown,
   Target,
   MapPin,
+  RefreshCw,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -118,6 +119,10 @@ const navItems: NavItem[] = [
     label: 'Settings',
     icon: Settings,
     roles: ['owner'],
+    children: [
+      { href: '/settings', label: 'Settings',      icon: Settings   },
+      { href: '/setup',    label: 'System Update',  icon: RefreshCw  },
+    ],
   },
 ]
 
