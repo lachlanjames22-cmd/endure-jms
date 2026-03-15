@@ -27,12 +27,32 @@ export function JarvisChat({ initialHistory }: Props) {
   const [messages, setMessages] = useState<Message[]>(initialHistory)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [briefLoading, setBriefLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const briefFired = useRef(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // On first mount with no history — fire morning brief automatically
+  useEffect(() => {
+    if (briefFired.current) return
+    if (initialHistory.length > 0) return // already have context, don't re-brief
+    briefFired.current = true
+    setBriefLoading(true)
+    fetch('/api/agent/brief', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.brief) {
+          setMessages([{ role: 'assistant', content: data.brief }])
+        }
+      })
+      .catch(() => {}) // non-fatal — chat still works
+      .finally(() => setBriefLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function send(text?: string) {
     const msg = (text ?? input).trim()
@@ -84,7 +104,9 @@ export function JarvisChat({ initialHistory }: Props) {
         </div>
         <div>
           <h1 className="text-sm font-medium text-[#e8ddd0]">Jarvis</h1>
-          <p className="text-xs text-[#444]">Business AI · Full context loaded</p>
+          <p className="text-xs text-[#444]">
+            {briefLoading ? 'Uploading the brain...' : 'Business AI · Full context loaded'}
+          </p>
         </div>
       </div>
 
@@ -93,25 +115,39 @@ export function JarvisChat({ initialHistory }: Props) {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full space-y-6 py-12">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#b8935a]/10 border border-[#b8935a]/20">
-              <Bot className="h-8 w-8 text-[#b8935a]" />
+              {briefLoading
+                ? <Loader2 className="h-8 w-8 text-[#b8935a] animate-spin" />
+                : <Bot className="h-8 w-8 text-[#b8935a]" />
+              }
             </div>
             <div className="text-center">
-              <p className="text-[#e8ddd0] font-['Georgia',serif] text-lg">G'day.</p>
-              <p className="text-[#444] text-sm mt-1">
-                I have full visibility of jobs, cash, crew, and pipeline.<br />What do you need?
-              </p>
+              {briefLoading ? (
+                <>
+                  <p className="text-[#e8ddd0] font-['Georgia',serif] text-lg">Loading the brain...</p>
+                  <p className="text-[#444] text-sm mt-1">Jarvis is reading your business context</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[#e8ddd0] font-['Georgia',serif] text-lg">G&apos;day.</p>
+                  <p className="text-[#444] text-sm mt-1">
+                    I have full visibility of jobs, cash, crew, and pipeline.<br />What do you need?
+                  </p>
+                </>
+              )}
             </div>
-            <div className="flex flex-wrap justify-center gap-2 max-w-md">
-              {STARTERS.map(s => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="rounded-lg border border-[#161616] bg-[#0c0c0c] px-3 py-2 text-xs text-[#444] hover:border-[#222] hover:text-[#e8ddd0] transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {!briefLoading && (
+              <div className="flex flex-wrap justify-center gap-2 max-w-md">
+                {STARTERS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => send(s)}
+                    className="rounded-lg border border-[#161616] bg-[#0c0c0c] px-3 py-2 text-xs text-[#444] hover:border-[#222] hover:text-[#e8ddd0] transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
