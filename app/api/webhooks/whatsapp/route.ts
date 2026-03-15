@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
 
   if (!isOwner) {
     // Log unknown sender
-    await admin.from('notifications').insert({
+    admin.from('notifications').insert({
       type: 'whatsapp_unknown',
       title: 'Unknown WhatsApp sender',
       body: `Message from ${phone}: ${body.slice(0, 100)}`,
       role: 'owner' as const,
       read: false,
-    }).catch(() => {}) // non-fatal
+    }) // non-fatal, fire-and-forget
 
     return twimlResponse("I don't recognise this number. If you're the owner, add your WhatsApp number in Endure OS Settings.")
   }
