@@ -489,13 +489,13 @@ export function SetupWizard({ userId }: { userId: string }) {
   }
 
   const stepContent = [
-    <StepWelcome key="welcome" />,
-    <StepYou key="you" />,
-    <StepCash key="cash" />,
-    <StepCrew key="crew" />,
-    <StepTargets key="targets" />,
-    <StepJobs key="jobs" />,
-    <StepDone key="done" />,
+    StepWelcome(),
+    StepYou(),
+    StepCash(),
+    StepCrew(),
+    StepTargets(),
+    StepJobs(),
+    StepDone(),
   ]
 
   const jarvisNote = step > 0 && step < TOTAL_STEPS - 1 ? JARVIS_NOTES[step] : null
