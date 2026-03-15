@@ -15,6 +15,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('id', user.id)
     .single()
 
+  const { data: setupSetting } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'setup_complete')
+    .single()
+
+  if (!setupSetting?.value) redirect('/setup')
+
   const role = (profile?.role ?? 'ops') as UserRole
 
   return (
