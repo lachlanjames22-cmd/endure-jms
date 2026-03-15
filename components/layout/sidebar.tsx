@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Crown,
   Target,
+  MapPin,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -91,6 +92,7 @@ const navItems: NavItem[] = [
       { href: '/ceo',       label: 'Overview',    icon: Crown       },
       { href: '/goals',     label: 'CEO Goals',   icon: Target      },
       { href: '/job-dna',   label: 'Job DNA',     icon: Dna         },
+      { href: '/map',       label: 'Job Map',     icon: MapPin      },
     ],
   },
   {
