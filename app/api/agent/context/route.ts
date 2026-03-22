@@ -43,9 +43,9 @@ export async function GET() {
   const billableDaysMonth = Number(settings['billable_days_month'] ?? COPS.billableDaysPerMonth)
 
   // Compute actual crew payroll cost from DB records
-  const weeklyCrewCost = crew.reduce((sum: number, c: { type: string; base_rate?: number; loaded_rate?: number }) => {
+  const weeklyCrewCost = crew.reduce((sum: number, c) => {
     if (c.type === 'subby') return sum
-    const rate = Number(c.base_rate ?? (c.loaded_rate ? c.loaded_rate * 0.87 : 0))
+    const rate = Number(c.base_rate ?? (c.loaded_rate != null ? c.loaded_rate * 0.87 : 0))
     return sum + rate * 40
   }, 0)
   const monthlyCrewCost = weeklyCrewCost > 0 ? weeklyCrewCost * 4.33 : COPS.monthlyLabour
@@ -147,7 +147,7 @@ export async function GET() {
   })
 
   // ── COPS ─────────────────────────────────────────────────────────────────
-  const daysWorkedThisMonth = completedThisMonth.reduce((s: number, j: { actual_days?: number; quoted_days?: number }) => s + (j.actual_days ?? j.quoted_days ?? 0), 0)
+  const daysWorkedThisMonth = completedThisMonth.reduce((s: number, j) => s + (j.actual_days ?? j.quoted_days ?? 0), 0)
   const daysRemainingThisMonth = billableDaysMonth - daysWorkedThisMonth
   const onTrackToBreakeven = billableDaysMonth > 0
     ? mtdLabourValue >= (monthlyTotal * (daysWorkedThisMonth / billableDaysMonth))
