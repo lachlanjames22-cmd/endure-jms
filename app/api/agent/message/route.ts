@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
+import { JARVIS_TOOLS } from '@/lib/jarvis/tools'
+import { executeTool } from '@/lib/jarvis/execute-tool'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -23,6 +25,8 @@ Your personality:
 - Proactive — flag things before asked
 - Decisive — always end with one recommended action
 - Warm with crew, professional with owner
+
+You have tools to take real actions in the system. Use them when the owner asks you to update jobs, log cashflow, create records, or run calculations. When you use a tool, confirm what you did and what changed.
 
 Diagnostic rules:
 1. Never recommend repricing without first ruling out efficiency, site conditions, and product mix
@@ -72,7 +76,6 @@ export async function POST(req: NextRequest) {
   let activeSessionId = session_id as string | null
 
   if (!activeSessionId) {
-    // Create a new session titled from first ~50 chars of the message
     const title = message.trim().slice(0, 50) + (message.trim().length > 50 ? '…' : '')
     const { data: newSession } = await admin
       .from('jarvis_sessions')
@@ -81,7 +84,6 @@ export async function POST(req: NextRequest) {
       .single()
     activeSessionId = newSession?.id ?? null
   } else {
-    // Touch updated_at so session floats to top
     await admin
       .from('jarvis_sessions')
       .update({ updated_at: new Date().toISOString() })
@@ -137,17 +139,71 @@ Today: ${new Date().toLocaleDateString('en-AU', { weekday: 'long', year: 'numeri
 Standing instructions:
 ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}. ${i}`).join('\n')}`
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1024,
-    system: systemWithContext,
-    messages,
-  })
+  // Agentic loop — runs until end_turn or max iterations
+  const MAX_ITERATIONS = 6
+  let finalContent = ''
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
+  const cookie = req.headers.get('cookie') ?? ''
+  const origin = req.nextUrl.origin
 
-  const rawContent = response.content[0].type === 'text' ? response.content[0].text : ''
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 2048,
+      system: systemWithContext,
+      tools: JARVIS_TOOLS,
+      messages,
+    })
+
+    totalInputTokens += response.usage.input_tokens
+    totalOutputTokens += response.usage.output_tokens
+
+    if (response.stop_reason === 'end_turn') {
+      finalContent = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map(b => b.text)
+        .join('')
+      break
+    }
+
+    if (response.stop_reason === 'tool_use') {
+      // Append assistant message (contains tool_use blocks)
+      messages.push({ role: 'assistant', content: response.content })
+
+      // Execute all requested tools
+      const toolResults: Anthropic.ToolResultBlockParam[] = []
+      for (const block of response.content) {
+        if (block.type === 'tool_use') {
+          const result = await executeTool(
+            block.name,
+            block.input as Record<string, unknown>,
+            origin,
+            cookie,
+          )
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: result,
+          })
+        }
+      }
+
+      // Feed results back as user message
+      messages.push({ role: 'user', content: toolResults })
+      continue
+    }
+
+    // Any other stop reason — extract whatever text is there and stop
+    finalContent = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+    break
+  }
 
   // Extract and save any memories Jarvis tagged
-  const assistantContent = await extractAndSaveMemories(rawContent)
+  const assistantContent = await extractAndSaveMemories(finalContent)
 
   // Save assistant response
   await admin.from('conversation_history').insert({
@@ -155,12 +211,15 @@ ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}.
     role: 'assistant',
     content: assistantContent,
     session_id: activeSessionId,
-    metadata: { model: response.model, usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens } },
+    metadata: {
+      model: 'claude-opus-4-6',
+      usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
+    },
   })
 
   return NextResponse.json({
     message: assistantContent,
     session_id: activeSessionId,
-    usage: response.usage,
+    usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
   })
 }

@@ -80,7 +80,7 @@ ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}.
 Keep it tight. Use real numbers from the context. No filler.`
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
+    model: 'claude-opus-4-6',
     max_tokens: 1024,
     system: systemWithContext,
     messages: [{ role: 'user', content: prompt }],
