@@ -13,35 +13,47 @@ export async function GET() {
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
-  const day3 = new Date(today); day3.setDate(day3.getDate() + 3)
-  const day3Str = day3.toISOString().split('T')[0]
-  const day10 = new Date(today); day10.setDate(day10.getDate() + 10)
 
   // Parallel fetch everything needed
-  const [
-    jobsRes,
-    cashflowRes,
-    settingsRes,
-    agentMemoryRes,
-    notifRes,
-    crewRes,
-  ] = await Promise.all([
-    admin.from('jobs').select('*').is('deleted_at', null),
-    admin.from('cashflow_events').select('*').order('scheduled_date'),
-    admin.from('settings').select('key, value'),
-    admin.from('agent_memory').select('*').eq('active', true).eq('type', 'instruction'),
-    admin.from('notifications').select('*').eq('read', false).order('created_at', { ascending: false }).limit(20),
-    admin.from('crew').select('*').eq('active', true),
-  ])
+  let jobsRes, cashflowRes, settingsRes, agentMemoryRes, notifRes, crewRes
+  try {
+    ;[jobsRes, cashflowRes, settingsRes, agentMemoryRes, notifRes, crewRes] = await Promise.all([
+      admin.from('jobs').select('*').is('deleted_at', null),
+      admin.from('cashflow_events').select('*').order('scheduled_date'),
+      admin.from('settings').select('key, value'),
+      admin.from('agent_memory').select('*').eq('active', true).eq('type', 'instruction'),
+      admin.from('notifications').select('*').eq('read', false).order('created_at', { ascending: false }).limit(20),
+      admin.from('crew').select('*').eq('active', true),
+    ])
+  } catch (err) {
+    console.error('[context] DB fetch error', err)
+    return NextResponse.json({ error: 'Failed to fetch business data' }, { status: 500 })
+  }
 
-  const jobs = jobsRes.data ?? []
-  const cashflowEvents = cashflowRes.data ?? []
-  const settings = Object.fromEntries((settingsRes.data ?? []).map(s => [s.key, s.value]))
-  const instructions = agentMemoryRes.data ?? []
-  const notifications = notifRes.data ?? []
-  const crew = crewRes.data ?? []
+  const jobs = jobsRes?.data ?? []
+  const cashflowEvents = cashflowRes?.data ?? []
+  const settings = Object.fromEntries((settingsRes?.data ?? []).map((s: { key: string; value: string }) => [s.key, s.value]))
+  const instructions = agentMemoryRes?.data ?? []
+  const crew = crewRes?.data ?? []
 
   const openingBalance = Number(settings['opening_balance'] ?? 0)
+
+  // Use setup wizard settings with fallbacks to constants
+  const targetGpPct = Number(settings['target_gp_pct'] ?? TARGETS.gpPct)
+  const billableDaysMonth = Number(settings['billable_days_month'] ?? COPS.billableDaysPerMonth)
+
+  // Compute actual crew payroll cost from DB records
+  const weeklyCrewCost = crew.reduce((sum: number, c: { type: string; base_rate?: number; loaded_rate?: number }) => {
+    if (c.type === 'subby') return sum
+    const rate = Number(c.base_rate ?? (c.loaded_rate ? c.loaded_rate * 0.87 : 0))
+    return sum + rate * 40
+  }, 0)
+  const monthlyCrewCost = weeklyCrewCost > 0 ? weeklyCrewCost * 4.33 : COPS.monthlyLabour
+  const monthlyTotal = monthlyCrewCost + COPS.monthlyOpex
+  const dailyTotal = billableDaysMonth > 0 ? monthlyTotal / billableDaysMonth : COPS.dailyTotal
+
+  // Fortnightly payroll amount from crew, fallback to constant
+  const nextCrewAmount = weeklyCrewCost > 0 ? weeklyCrewCost : PAYROLL.fixedWeeklyField
 
   // ── Cash position ─────────────────────────────────────────────────────────
   let runningBalance = openingBalance
@@ -85,7 +97,7 @@ export async function GET() {
   const cashStatus = lowest < 0 ? 'critical'
     : lowest < TARGETS.cashCritical ? 'critical'
     : lowest < TARGETS.cashWarning ? 'warning'
-    : 'healthy'
+    : 'healthy' as 'critical' | 'warning' | 'healthy'
 
   // ── Payroll ───────────────────────────────────────────────────────────────
   // Next fortnightly payroll — find next Thursday on or after today
@@ -99,7 +111,6 @@ export async function GET() {
 
   const nextCrewDate = nextPayrollDate()
   const cashOnNextCrewDate = dailyBalances[nextCrewDate] ?? balanceToday
-  const nextCrewAmount = PAYROLL.fixedWeeklyField // weekly equivalent, fortnight = ×2
 
   // ── Jobs ──────────────────────────────────────────────────────────────────
   const activeStatuses = ['quoted', 'won', 'scheduled', 'in_progress']
@@ -136,9 +147,11 @@ export async function GET() {
   })
 
   // ── COPS ─────────────────────────────────────────────────────────────────
-  const daysWorkedThisMonth = completedThisMonth.reduce((s, j) => s + (j.actual_days ?? j.quoted_days ?? 0), 0)
-  const daysRemainingThisMonth = COPS.billableDaysPerMonth - daysWorkedThisMonth
-  const onTrackToBreakeven = mtdLabourValue >= (COPS.monthlyTotal * (daysWorkedThisMonth / COPS.billableDaysPerMonth))
+  const daysWorkedThisMonth = completedThisMonth.reduce((s: number, j: { actual_days?: number; quoted_days?: number }) => s + (j.actual_days ?? j.quoted_days ?? 0), 0)
+  const daysRemainingThisMonth = billableDaysMonth - daysWorkedThisMonth
+  const onTrackToBreakeven = billableDaysMonth > 0
+    ? mtdLabourValue >= (monthlyTotal * (daysWorkedThisMonth / billableDaysMonth))
+    : false
 
   // ── Alerts ────────────────────────────────────────────────────────────────
   const alerts = []
@@ -176,9 +189,10 @@ export async function GET() {
       }
     }
   }
+  const gpAmberThreshold = targetGpPct * 0.8 // amber = 80% of target GP
   for (const j of inProgressJobs) {
-    if (j.quoted_gp_pct && j.quoted_gp_pct < TARGETS.gpPctAmber) {
-      alerts.push({ severity: 'critical', type: 'gp_below_warn', title: `${j.name} — GP ${Math.round(j.quoted_gp_pct * 100)}% below threshold`, body: `Minimum 36%. Review costs immediately.` })
+    if (j.quoted_gp_pct && j.quoted_gp_pct < gpAmberThreshold) {
+      alerts.push({ severity: 'critical', type: 'gp_below_warn', title: `${j.name} — GP ${Math.round(j.quoted_gp_pct * 100)}% below threshold`, body: `Minimum ${Math.round(gpAmberThreshold * 100)}%. Review costs immediately.` })
     }
   }
 
@@ -192,12 +206,12 @@ export async function GET() {
       status: cashStatus,
     },
     cops: {
-      monthly_total: COPS.monthlyTotal,
-      daily_rate: COPS.dailyTotal,
+      monthly_total: Math.round(monthlyTotal),
+      daily_rate: Math.round(dailyTotal),
       days_worked_this_month: daysWorkedThisMonth,
       days_remaining_this_month: daysRemainingThisMonth,
       on_track_to_breakeven: onTrackToBreakeven,
-      breakeven_revenue_monthly: COPS.breakevenMonthly,
+      breakeven_revenue_monthly: Math.round(monthlyTotal),
     },
     jobs: {
       in_progress: inProgressJobs,
@@ -239,7 +253,11 @@ export async function GET() {
       const order = { critical: 0, warning: 1, info: 2 }
       return order[a.severity as keyof typeof order] - order[b.severity as keyof typeof order]
     }),
-    targets: TARGETS,
+    targets: {
+      ...TARGETS,
+      gpPct: targetGpPct,
+      gpPctAmber: gpAmberThreshold,
+    },
     standing_instructions: instructions.map(m => m.content),
   })
 }
