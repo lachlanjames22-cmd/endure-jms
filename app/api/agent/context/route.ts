@@ -32,7 +32,7 @@ export async function GET() {
 
   const jobs = jobsRes?.data ?? []
   const cashflowEvents = cashflowRes?.data ?? []
-  const settings = Object.fromEntries((settingsRes?.data ?? []).map((s: { key: string; value: string }) => [s.key, s.value]))
+  const settings = Object.fromEntries((settingsRes?.data ?? []).map(s => [s.key, s.value]))
   const instructions = agentMemoryRes?.data ?? []
   const crew = crewRes?.data ?? []
 

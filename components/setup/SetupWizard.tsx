@@ -147,6 +147,14 @@ export function SetupWizard({ userId }: { userId: string }) {
   function canAdvance() {
     if (step === 1) return data.ownerName.trim().length > 0
     if (step === 2) return data.openingBalance.trim().length > 0
+    if (step === 3) {
+      // Every crew member with a name must have a loaded rate > 0
+      return data.crew.every(c => !c.name.trim() || parseFloat(c.loadedRate) > 0)
+    }
+    if (step === 5) {
+      // Every job with a name must have a value > 0
+      return data.jobs.every(j => !j.name.trim() || parseFloat(j.value) > 0)
+    }
     return true
   }
 

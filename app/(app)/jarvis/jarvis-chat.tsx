@@ -88,9 +88,13 @@ export function JarvisChat({ initialHistory }: Props) {
     }
   }
 
-  // Format Jarvis response — bold, line breaks
+  // Format Jarvis response — escape HTML first, then apply markdown bold + line breaks
   function formatMessage(content: string) {
-    return content
+    const escaped = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    return escaped
       .replace(/\*\*(.+?)\*\*/g, '<strong class="text-[#e8ddd0]">$1</strong>')
       .replace(/\n/g, '<br />')
   }
