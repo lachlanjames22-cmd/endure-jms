@@ -171,6 +171,12 @@ export interface Database {
           address: string | null
           suburb: string | null
           notes: string | null
+          dna_efficiency: number | null
+          dna_margin: number | null
+          dna_complexity: number | null
+          dna_repeatability: number | null
+          dna_client: number | null
+          dna_reviewed_at: string | null
           deleted_at: string | null
           created_at: string
           updated_at: string
@@ -220,6 +226,12 @@ export interface Database {
           actual_gp_pct?: number | null
           actual_labour_hours?: number | null
           actual_days?: number | null
+          dna_efficiency?: number | null
+          dna_margin?: number | null
+          dna_complexity?: number | null
+          dna_repeatability?: number | null
+          dna_client?: number | null
+          dna_reviewed_at?: string | null
           deleted_at?: string | null
         }
         Relationships: [
@@ -640,6 +652,24 @@ export interface Database {
         Update: { read?: boolean }
         Relationships: []
       }
+      jarvis_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          title?: string
+        }
+        Update: {
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversation_history: {
         Row: {
           id: string
@@ -647,6 +677,7 @@ export interface Database {
           role: 'user' | 'assistant'
           content: string
           metadata: Json | null
+          session_id: string | null
           created_at: string
         }
         Insert: {
@@ -654,9 +685,18 @@ export interface Database {
           role: 'user' | 'assistant'
           content: string
           metadata?: Json | null
+          session_id?: string | null
         }
         Update: { metadata?: Json | null }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversation_history_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "jarvis_sessions"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       quote_line_items: {
         Row: {

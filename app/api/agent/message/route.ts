@@ -32,20 +32,62 @@ Diagnostic rules:
 5. Distinguish cash feel vs cash reality
 6. GP is always on labour value, never total revenue — this is non-negotiable
 
-When you suggest an action, format it clearly as:
-**Recommended action:** [specific action]
+Memory commands — if the user says "remember this", "save this", "note that", or similar, respond normally AND include a JSON block at the very end of your response in this exact format (nothing after it):
+<save_memory type="decision|preference|context">The memory content to save</save_memory>
 
-When presenting financial data, use Australian dollars and format clearly.`
+When presenting financial data, use Australian dollars and format clearly.
+When you suggest an action, format it clearly as:
+**Recommended action:** [specific action]`
+
+// Extract <save_memory> tags from Jarvis response and persist them
+async function extractAndSaveMemories(content: string): Promise<string> {
+  const admin = createAdminClient()
+  const regex = /<save_memory type="([^"]+)">([^<]+)<\/save_memory>/g
+  let match
+  let cleaned = content
+
+  while ((match = regex.exec(content)) !== null) {
+    const type = match[1] as 'decision' | 'preference' | 'context' | 'instruction'
+    const memContent = match[2].trim()
+    if (memContent) {
+      try { await admin.from('agent_memory').insert({ type, content: memContent, active: true }) } catch { /* non-fatal */ }
+    }
+    cleaned = cleaned.replace(match[0], '').trim()
+  }
+
+  return cleaned
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const { message, conversation_id } = await req.json()
+  const { message, session_id } = await req.json()
   if (!message?.trim()) return NextResponse.json({ error: 'Message required' }, { status: 400 })
 
   const admin = createAdminClient()
+
+  // Resolve or create session
+  let activeSessionId = session_id as string | null
+
+  if (!activeSessionId) {
+    // Create a new session titled from first ~50 chars of the message
+    const title = message.trim().slice(0, 50) + (message.trim().length > 50 ? '…' : '')
+    const { data: newSession } = await admin
+      .from('jarvis_sessions')
+      .insert({ user_id: user.id, title })
+      .select('id')
+      .single()
+    activeSessionId = newSession?.id ?? null
+  } else {
+    // Touch updated_at so session floats to top
+    await admin
+      .from('jarvis_sessions')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', activeSessionId)
+      .eq('user_id', user.id)
+  }
 
   // Fetch full business context
   const contextRes = await fetch(`${req.nextUrl.origin}/api/agent/context`, {
@@ -53,25 +95,27 @@ export async function POST(req: NextRequest) {
   })
   const context = await contextRes.json()
 
-  // Fetch recent conversation history
-  const { data: history } = await admin
+  // Fetch this session's conversation history (last 30 turns)
+  const historyQuery = admin
     .from('conversation_history')
     .select('role, content')
-    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(30)
+
+  if (activeSessionId) {
+    historyQuery.eq('session_id', activeSessionId)
+  } else {
+    historyQuery.eq('user_id', user.id)
+  }
+
+  const { data: history } = await historyQuery
 
   const messages: Anthropic.MessageParam[] = [
-    // Recent history (reversed to chronological)
     ...((history ?? []).reverse().map(h => ({
       role: h.role as 'user' | 'assistant',
       content: h.content,
     }))),
-    // Current message
-    {
-      role: 'user',
-      content: message,
-    },
+    { role: 'user', content: message },
   ]
 
   // Save user message
@@ -79,6 +123,7 @@ export async function POST(req: NextRequest) {
     user_id: user.id,
     role: 'user',
     content: message,
+    session_id: activeSessionId,
     metadata: { snapshot_date: context.snapshot_date },
   })
 
@@ -99,20 +144,23 @@ ${(context.standing_instructions ?? []).map((i: string, n: number) => `${n + 1}.
     messages,
   })
 
-  const assistantContent = response.content[0].type === 'text'
-    ? response.content[0].text
-    : ''
+  const rawContent = response.content[0].type === 'text' ? response.content[0].text : ''
+
+  // Extract and save any memories Jarvis tagged
+  const assistantContent = await extractAndSaveMemories(rawContent)
 
   // Save assistant response
   await admin.from('conversation_history').insert({
     user_id: user.id,
     role: 'assistant',
     content: assistantContent,
+    session_id: activeSessionId,
     metadata: { model: response.model, usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens } },
   })
 
   return NextResponse.json({
     message: assistantContent,
+    session_id: activeSessionId,
     usage: response.usage,
   })
 }

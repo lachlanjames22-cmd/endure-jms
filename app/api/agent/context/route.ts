@@ -21,7 +21,7 @@ export async function GET() {
       admin.from('jobs').select('*').is('deleted_at', null),
       admin.from('cashflow_events').select('*').order('scheduled_date'),
       admin.from('settings').select('key, value'),
-      admin.from('agent_memory').select('*').eq('active', true).eq('type', 'instruction'),
+      admin.from('agent_memory').select('*').eq('active', true),
       admin.from('notifications').select('*').eq('read', false).order('created_at', { ascending: false }).limit(20),
       admin.from('crew').select('*').eq('active', true),
     ])
@@ -33,7 +33,8 @@ export async function GET() {
   const jobs = jobsRes?.data ?? []
   const cashflowEvents = cashflowRes?.data ?? []
   const settings = Object.fromEntries((settingsRes?.data ?? []).map(s => [s.key, s.value]))
-  const instructions = agentMemoryRes?.data ?? []
+  const allMemory = agentMemoryRes?.data ?? []
+  const instructions = allMemory.filter(m => m.type === 'instruction')
   const crew = crewRes?.data ?? []
 
   const openingBalance = Number(settings['opening_balance'] ?? 0)
@@ -196,6 +197,41 @@ export async function GET() {
     }
   }
 
+  // ── Job DNA intelligence ──────────────────────────────────────────────────
+  const completedJobsWithDNA = jobs.filter(j =>
+    j.status === 'complete' &&
+    (j.dna_margin !== null || j.dna_efficiency !== null)
+  )
+
+  function avgDNA(field: 'dna_margin' | 'dna_efficiency' | 'dna_complexity' | 'dna_repeatability' | 'dna_client', subset: typeof jobs) {
+    const vals = subset.map(j => j[field]).filter((v): v is number => v !== null)
+    return vals.length > 0 ? Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10 : null
+  }
+
+  const dnaByTier = (['red', 'black', 'blue'] as const).reduce((acc, tier) => {
+    const t = completedJobsWithDNA.filter(j => j.jw_tier === tier)
+    if (t.length === 0) return acc
+    acc[tier] = {
+      count: t.length,
+      avg_margin:        avgDNA('dna_margin', t),
+      avg_efficiency:    avgDNA('dna_efficiency', t),
+      avg_complexity:    avgDNA('dna_complexity', t),
+      avg_repeatability: avgDNA('dna_repeatability', t),
+      avg_client:        avgDNA('dna_client', t),
+    }
+    return acc
+  }, {} as Record<string, unknown>)
+
+  // Best and worst jobs by overall DNA (simple average of available scores)
+  const jobsWithOverall = completedJobsWithDNA.map(j => {
+    const scores = [j.dna_margin, j.dna_efficiency, j.dna_complexity, j.dna_repeatability, j.dna_client].filter((v): v is number => v !== null)
+    const avg = scores.length > 0 ? scores.reduce((s, v) => s + v, 0) / scores.length : null
+    return { id: j.id, name: j.name, client_name: j.client_name, jw_tier: j.jw_tier, suburb: j.suburb, avg_dna: avg }
+  }).sort((a, b) => (b.avg_dna ?? 0) - (a.avg_dna ?? 0))
+
+  // Jobs needing DNA review (complete but not yet reviewed)
+  const needsDnaReview = jobs.filter(j => j.status === 'complete' && j.dna_reviewed_at === null)
+
   return NextResponse.json({
     snapshot_date: todayStr,
     cash: {
@@ -259,5 +295,16 @@ export async function GET() {
       gpPctAmber: gpAmberThreshold,
     },
     standing_instructions: instructions.map(m => m.content),
+    memory: {
+      decisions:    allMemory.filter(m => m.type === 'decision').map(m => ({ id: m.id, content: m.content, context: m.context, created_at: m.created_at })),
+      preferences:  allMemory.filter(m => m.type === 'preference').map(m => ({ id: m.id, content: m.content, created_at: m.created_at })),
+      context_notes: allMemory.filter(m => m.type === 'context').map(m => ({ id: m.id, content: m.content, created_at: m.created_at })),
+    },
+    job_dna: {
+      by_tier: dnaByTier,
+      top_jobs:    jobsWithOverall.slice(0, 3),
+      bottom_jobs: jobsWithOverall.slice(-3).reverse(),
+      needs_review: needsDnaReview.map(j => ({ id: j.id, name: j.name, client_name: j.client_name, completion_date: j.completion_date })),
+    },
   })
 }

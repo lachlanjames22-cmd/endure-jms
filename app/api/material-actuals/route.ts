@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { recalcJobDNA } from '@/lib/dna'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Fire-and-forget DNA recalc
+  if (body.job_id) recalcJobDNA(body.job_id).catch(() => {})
+
   return NextResponse.json(data, { status: 201 })
 }
 
@@ -62,5 +66,9 @@ export async function PATCH(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fire-and-forget DNA recalc for the patched item's job
+  if (data?.job_id) recalcJobDNA(data.job_id).catch(() => {})
+
   return NextResponse.json(data)
 }
