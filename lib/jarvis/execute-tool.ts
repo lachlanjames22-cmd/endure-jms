@@ -108,6 +108,20 @@ async function routeTool(
       return { success: true, data: await res.json() }
     }
 
+    case 'update_opening_balance': {
+      const { opening_balance } = input as { opening_balance: number; reason?: string }
+      const res = await fetch(`${origin}/api/settings`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ opening_balance }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        return { success: false, error: err.error ?? `HTTP ${res.status}` }
+      }
+      return { success: true, data: { opening_balance, message: 'Opening balance updated. Cash projections will reflect this immediately.' } }
+    }
+
     case 'log_material_purchase': {
       const res = await fetch(`${origin}/api/material-actuals`, {
         method: 'POST',

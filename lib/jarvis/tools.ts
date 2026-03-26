@@ -221,6 +221,34 @@ Typical Modwood 137 rates as fallback: cost_per_m2=85, rate_full_subframe=285, r
   },
 
   {
+    name: 'update_opening_balance',
+    description: `Update the opening cash balance — the baseline figure the cash projection builds from.
+
+Use this when the owner wants to:
+- Reconcile the system balance against their actual bank balance
+- Correct the starting balance after a bank statement
+- Set a fresh baseline (e.g. "our balance is actually $X today")
+
+After updating, confirm the new balance and note that all future projections will build from this figure.
+Do NOT use this for regular payments — use create_cashflow_event for those.`,
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        opening_balance: {
+          type: 'number',
+          description: 'The new opening/baseline cash balance in AUD',
+        },
+        reason: {
+          type: 'string',
+          description: 'Brief reason for the update, e.g. "bank reconciliation" or "correcting opening figure"',
+        },
+      },
+      required: ['opening_balance'],
+      additionalProperties: false,
+    },
+  },
+
+  {
     name: 'log_material_purchase',
     description: `Log a material purchase against a job. Use when the owner says materials have been ordered or paid for.
 Automatically creates a corresponding cashflow outflow event.
