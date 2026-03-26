@@ -232,6 +232,41 @@ export async function GET() {
   // Jobs needing DNA review (complete but not yet reviewed)
   const needsDnaReview = jobs.filter(j => j.status === 'complete' && j.dna_reviewed_at === null)
 
+  // ── Cashflow events for Jarvis tools ─────────────────────────────────────
+  // Upcoming unpaid events (next 60 days) — Jarvis needs IDs to update them
+  const day60 = new Date(today)
+  day60.setDate(day60.getDate() + 60)
+  const day60Str = day60.toISOString().split('T')[0]
+  const day14Ago = new Date(today)
+  day14Ago.setDate(day14Ago.getDate() - 14)
+  const day14AgoStr = day14Ago.toISOString().split('T')[0]
+
+  const upcomingCashflow = cashflowEvents
+    .filter(ev => ev.paid_date === null && ev.scheduled_date >= todayStr && ev.scheduled_date <= day60Str)
+    .map(ev => ({
+      id: ev.id,
+      type: ev.type,
+      category: ev.category,
+      label: ev.label,
+      amount: ev.amount,
+      scheduled_date: ev.scheduled_date,
+      job_id: ev.job_id,
+    }))
+
+  const recentCashflow = cashflowEvents
+    .filter(ev => ev.scheduled_date >= day14AgoStr && ev.scheduled_date < todayStr)
+    .slice(0, 20)
+    .map(ev => ({
+      id: ev.id,
+      type: ev.type,
+      category: ev.category,
+      label: ev.label,
+      amount: ev.amount,
+      scheduled_date: ev.scheduled_date,
+      paid_date: ev.paid_date,
+      job_id: ev.job_id,
+    }))
+
   return NextResponse.json({
     snapshot_date: todayStr,
     cash: {
@@ -240,6 +275,10 @@ export async function GET() {
       lowest_balance: Math.round(lowest),
       lowest_date: lowestDate,
       status: cashStatus,
+    },
+    cashflow: {
+      upcoming: upcomingCashflow,
+      recent: recentCashflow,
     },
     cops: {
       monthly_total: Math.round(monthlyTotal),
