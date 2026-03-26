@@ -281,6 +281,25 @@ export default function JobCosting() {
           body: JSON.stringify({ status: 'complete', _oldStatus: job.status || 'in_progress' }),
         });
 
+        // Save actuals so recalcJobDNA has real data for margin + efficiency scoring
+        const totalActualHrs = job.labour.reduce((s, l) => s + (l.actualHrs || 0), 0);
+        const totalActualLabour = job.labour.reduce((s, l) => s + (l.actualHrs || 0) * (l.loaded || 0), 0);
+        const totalActualMaterials = job.materials.reduce((s, m) => s + (m.actual || 0), 0);
+        const actualGP = job.quotedAmount - totalActualMaterials - totalActualLabour;
+        const actualGPPct = job.quotedAmount > 0 ? actualGP / job.quotedAmount : 0;
+
+        await fetch(`/api/jobs/${dbId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actual_labour_hours: totalActualHrs,
+            actual_labour_value: Math.round(totalActualLabour),
+            actual_gp_amount: Math.round(actualGP),
+            actual_gp_pct: Math.round(actualGPPct * 10000) / 10000,
+            actual_days: job.daysOnJob || null,
+          }),
+        });
+
         // Save subjective DNA scores
         const dnaRes = await fetch(`/api/jobs/${dbId}/dna`, {
           method: 'PATCH',

@@ -331,7 +331,7 @@ Analyse these patterns. What should I watch for next month? What job types shoul
 }
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function JobDNA() {
-  const [jobs, setJobs] = useState<Job[]>(SEED_JOBS);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [view, setView] = useState("library");
 
   // Load completed jobs with DNA scores from DB on mount
@@ -365,8 +365,7 @@ export default function JobDNA() {
             },
             breakEvenMet: true,
           }));
-        // DB jobs first, seed jobs appended for reference
-        setJobs([...dbJobs, ...SEED_JOBS]);
+        setJobs(dbJobs);
       })
       .catch(() => {}); // Keep seed data on error
   }, []);
@@ -717,6 +716,12 @@ export default function JobDNA() {
                 <Mono key={h} style={{ fontSize: "9px", color: TEXT_DIM, textTransform: "uppercase", letterSpacing: "0.1em" }}>{h}</Mono>
               ))}
             </div>
+            {filtered.length === 0 && (
+              <div style={{ padding: "40px 14px", textAlign: "center" }}>
+                <Mono style={{ fontSize: "10px", color: TEXT_DIM, letterSpacing: "0.2em" }}>NO COMPLETED JOBS YET</Mono>
+                <div style={{ fontSize: "11px", color: TEXT_DIM, marginTop: "8px" }}>Close a job in Job Costing to populate the library.</div>
+              </div>
+            )}
             {filtered.map(j => {
               const jw = JW_LABELS[j.jwLabel];
               const calc = calcBreakEven(j);
