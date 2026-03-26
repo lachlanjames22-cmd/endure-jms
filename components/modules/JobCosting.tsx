@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client'
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 // ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
 const C = {
   bg:      "#13131a", surface: "#1c1c26", surface2: "#22222e",
@@ -154,12 +154,47 @@ function NumInput({ value, onChange, prefix, small }) {
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function JobCosting() {
   const [jobs,    setJobs]    = useState([SEED_JOB]);
-  const [active,  setActive]  = useState(1);
+  const [active,  setActive]  = useState(SEED_JOB.id);
   const [view,    setView]    = useState("overview");
   const [showNew,    setShowNew]    = useState(false);
   const [showClose,  setShowClose]  = useState(false);
   const [closeScores, setCloseScores] = useState({ complexity: 7, repeatability: 7, client: 7 });
   const [newJob,  setNewJob]  = useState({ name: "", suburb: "", type: "Decking", quotedAmount: "", daysOnJob: "", totalM2: "" });
+  const [saving,  setSaving]  = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  // Load active jobs from DB on mount
+  useEffect(() => {
+    fetch('/api/jobs')
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data)) return;
+        const active = data.filter(j => ['in_progress', 'won'].includes(j.status));
+        if (active.length === 0) return;
+        const mapped = active.map(j => ({
+          id:        j.id,
+          dbId:      j.id,
+          name:      j.client_name || 'Unknown',
+          suburb:    j.suburb || '',
+          type:      j.install_type || 'Decking',
+          client:    j.client_name || '',
+          status:    j.status,
+          dateStarted:   j.won_date || j.created_at?.split('T')[0] || '',
+          dateCompleted: j.completion_date || '',
+          daysOnJob:   j.quoted_days || 5,
+          daysToComplete: j.quoted_days || 5,
+          billableResources: 2,
+          totalM2:     j.sqm || 0,
+          quotedAmount: j.gross_quote || j.quoted_total_value || 0,
+          materials: [{ id: 1, supplier: "Materials", forecasted: 0, actual: 0 }],
+          labour: CREW_ROSTER.map((c, i) => ({ id: i + 1, ...c, forecastedHrs: 0, actualHrs: 0 })),
+          hire: 0, fees: 0, notes: j.notes || '',
+        }));
+        setJobs(mapped);
+        setActive(mapped[0].id);
+      })
+      .catch(() => {}); // Fall back to seed data on error
+  }, []);
   const job = jobs.find(j => j.id === active);
   const forecast = job ? calcJob(job, "forecast") : null;
   const actual   = job ? calcJob(job, "actual")   : null;
@@ -190,12 +225,33 @@ export default function JobCosting() {
       ...j, labour: j.labour.filter(l => l.id !== labId)
     }));
   }, []);
-  const createJob = useCallback(() => {
+  const createJob = useCallback(async () => {
     if (!newJob.name) return;
-    const id = Date.now();
+
+    // Create in DB and get the UUID back
+    let dbId = null;
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_name: newJob.name,
+          suburb:      newJob.suburb,
+          status:      'in_progress',
+          gross_quote: parseFloat(newJob.quotedAmount) || 0,
+          sqm:         parseFloat(newJob.totalM2) || 0,
+          quoted_days: parseFloat(newJob.daysOnJob) || 5,
+        }),
+      });
+      const data = await res.json();
+      dbId = data.id ?? null;
+    } catch { /* fall back to local-only */ }
+
+    const id = dbId ?? Date.now();
     setJobs(js => [...js, {
-      id, name: newJob.name, suburb: newJob.suburb, type: newJob.type,
-      client: "", dateStarted: new Date().toISOString().slice(0, 10), dateCompleted: "",
+      id, dbId, name: newJob.name, suburb: newJob.suburb, type: newJob.type,
+      client: "", status: "in_progress",
+      dateStarted: new Date().toISOString().slice(0, 10), dateCompleted: "",
       daysOnJob: parseFloat(newJob.daysOnJob) || 5,
       daysToComplete: parseFloat(newJob.daysOnJob) || 5,
       billableResources: 2,
@@ -209,7 +265,44 @@ export default function JobCosting() {
     setShowNew(false);
     setNewJob({ name: "", suburb: "", type: "Decking", quotedAmount: "", daysOnJob: "", totalM2: "" });
   }, [newJob]);
-  const closeJob = useCallback(() => {
+  const closeJob = useCallback(async () => {
+    if (!job) return;
+    setSaving(true);
+    setSaveMsg("");
+
+    // Persist to DB if this job is linked to a real DB record
+    const dbId = job.dbId;
+    if (dbId) {
+      try {
+        // Mark job complete (triggers complete_job_snapshot RPC)
+        await fetch(`/api/jobs/${dbId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'complete', _oldStatus: job.status || 'in_progress' }),
+        });
+
+        // Save subjective DNA scores
+        const dnaRes = await fetch(`/api/jobs/${dbId}/dna`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            complexity:    closeScores.complexity,
+            repeatability: closeScores.repeatability,
+            client:        closeScores.client,
+          }),
+        });
+
+        if (dnaRes.ok) {
+          setSaveMsg("✓ Saved to DNA");
+        } else {
+          setSaveMsg("Job closed — DNA save failed, retry in Job DNA");
+        }
+      } catch {
+        setSaveMsg("DB unavailable — scores saved locally only");
+      }
+    }
+
+    // Update local state regardless
     setJobs(js => js.map(j => j.id !== active ? j : {
       ...j,
       status: "complete",
@@ -233,8 +326,10 @@ export default function JobCosting() {
           date:      new Date().toISOString().slice(0, 10),
         }))
     }));
-    setShowClose(false);
-  }, [active, closeScores]);
+
+    setSaving(false);
+    setTimeout(() => setShowClose(false), 800);
+  }, [active, closeScores, job]);
   const tabs = ["overview", "materials", "labour", "report"];
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text, fontFamily: "Georgia, serif" }}>
@@ -716,12 +811,17 @@ export default function JobCosting() {
                 </div>
               ))}
             </div>
+            {saveMsg && (
+              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "9px", color: saveMsg.startsWith("✓") ? C.green : C.amber, marginBottom: "10px", textAlign: "center" }}>
+                {saveMsg}
+              </div>
+            )}
             <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={closeJob}
-                style={{ flex: 1, background: C.gold, color: C.bg, border: "none", fontFamily: "'DM Mono',monospace", fontSize: "10px", padding: "12px", cursor: "pointer", letterSpacing: "0.1em" }}>
-                CONFIRM CLOSE · SEND TO DNA
+              <button onClick={closeJob} disabled={saving}
+                style={{ flex: 1, background: saving ? C.border2 : C.gold, color: C.bg, border: "none", fontFamily: "'DM Mono',monospace", fontSize: "10px", padding: "12px", cursor: saving ? "default" : "pointer", letterSpacing: "0.1em", opacity: saving ? 0.7 : 1 }}>
+                {saving ? "SAVING..." : "CONFIRM CLOSE · SEND TO DNA"}
               </button>
-              <button onClick={() => setShowClose(false)}
+              <button onClick={() => setShowClose(false)} disabled={saving}
                 style={{ background: "transparent", border: `1px solid ${C.border2}`, color: C.textDim, fontFamily: "'DM Mono',monospace", fontSize: "10px", padding: "12px 16px", cursor: "pointer" }}>
                 CANCEL
               </button>

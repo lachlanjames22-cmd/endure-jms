@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 // ─── TOKENS (matches Endure OS) ───────────────────────────────────────────────
 const GOLD="#b8935a", BG="#080808", SURFACE="#0c0c0f", SURFACE2="#111114";
 const SURFACE3="#0a0a0d", TEXT="#e8ddd0", TEXT_DIM="#4e4a45", TEXT_MID="#7a7570";
@@ -333,6 +333,43 @@ Analyse these patterns. What should I watch for next month? What job types shoul
 export default function JobDNA() {
   const [jobs, setJobs] = useState<Job[]>(SEED_JOBS);
   const [view, setView] = useState("library");
+
+  // Load completed jobs with DNA scores from DB on mount
+  useEffect(() => {
+    fetch('/api/jobs?status=complete')
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data) || data.length === 0) return;
+        const dbJobs: Job[] = data
+          .filter(j => j.dna_reviewed_at !== null)
+          .map(j => ({
+            id:          j.id,
+            date:        (j.completion_date || j.won_date || j.created_at || '').slice(0, 7),
+            client:      j.client_name || '',
+            suburb:      j.suburb || '',
+            type:        j.install_type || 'New Deck',
+            jwLabel:     j.jw_tier || 'red',
+            quotedDays:  j.quoted_days || 0,
+            quotedHours: (j.quoted_days || 0) * 8,
+            quotedValue: j.gross_quote || j.quoted_total_value || 0,
+            actualDays:  j.actual_days ?? null,
+            actualHours: j.actual_labour_hours ?? null,
+            notes:       '',
+            crew:        ['baylee', 'marius'],
+            dna: {
+              margin:        j.dna_margin        ?? 5,
+              efficiency:    j.dna_efficiency    ?? 5,
+              complexity:    j.dna_complexity    ?? 5,
+              repeatability: j.dna_repeatability ?? 5,
+              client:        j.dna_client        ?? 5,
+            },
+            breakEvenMet: true,
+          }));
+        // DB jobs first, seed jobs appended for reference
+        setJobs([...dbJobs, ...SEED_JOBS]);
+      })
+      .catch(() => {}); // Keep seed data on error
+  }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formJob, setFormJob] = useState<Omit<Job,'id'>>(EMPTY_JOB);
   const [filterLabel, setFilterLabel] = useState("all");
