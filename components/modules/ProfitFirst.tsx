@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 // ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
 const C = {
   bg:       "#13131a",
@@ -180,6 +180,23 @@ export default function ProfitFirst() {
   const [editAccount, setEditAccount] = useState<string | null>(null);
   const [pendingAlloc,setPendingAlloc]= useState<{amount:number;alloc:{tax:number;profit:number;reserve:number;ops:number};job:string;type:string}|null>(null);
   const [payment, setPayment] = useState({ jobId: "", type: "subframe", amount: "" });
+
+  useEffect(() => {
+    fetch('/api/pf-accounts')
+      .then(r => r.json())
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          setAccounts(prev => ({
+            ...prev,
+            ...(data.transactions != null && { transactions: data.transactions }),
+            ...(data.tax != null && { tax: data.tax }),
+            ...(data.reserve != null && { reserve: data.reserve }),
+            ...(data.profit != null && { profit: data.profit }),
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const calcAllocation = useCallback((amount: number) => ({
     tax:     Math.round(amount * PF.tax),
@@ -784,7 +801,14 @@ export default function ProfitFirst() {
               <button onClick={() => {
                 const el = document.getElementById("editBalanceInput") as HTMLInputElement;
                 const val = parseFloat(el?.value ?? "");
-                if (!isNaN(val)) setAccounts(prev => ({ ...prev, [editAccount]: val }));
+                if (!isNaN(val)) {
+                  setAccounts(prev => ({ ...prev, [editAccount]: val }));
+                  fetch('/api/pf-accounts', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: editAccount, balance: val }),
+                  }).catch(() => {});
+                }
                 setEditAccount(null);
               }} style={{ flex: 1, background: C.gold, color: C.bg, border: "none", fontFamily: "'DM Mono',monospace", fontSize: "10px", padding: "10px", cursor: "pointer" }}>
                 SAVE

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 const GOLD = "#c9a06a", BG = "#080810", SURFACE = "#0d0d18", SURFACE2 = "#12121f";
 const TEXT = "#f0ebe3", TEXT_MID = "#7a7590", TEXT_DIM = "#3a3a50";
@@ -144,13 +144,40 @@ export default function PerthJobMap() {
   const [showTarget,   setShowTarget]   = useState(false);
   const [hoveredSuburb,setHoveredSuburb]= useState<string|null>(null);
   const [selectedSuburb,setSelectedSuburb] = useState<string|null>(null);
+  const [jobs, setJobs] = useState(JOBS); // start with seed data
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const filteredJobs = useMemo(() => JOBS.filter(j => {
+  useEffect(() => {
+    fetch('/api/jobs')
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data) || data.length === 0) return; // keep seed data
+        const mapped = data.filter(j => j.suburb).map(j => {
+          const suburbMatch = METRO_SUBURBS.find(
+            s => s.name.toLowerCase() === (j.suburb ?? '').toLowerCase()
+          );
+          return {
+            client: j.client_name,
+            suburb: j.suburb,
+            type: j.install_type === 'fullSubframe' ? 'New Deck' : j.install_type === 'redeck' ? 'Redeck' : 'New Deck',
+            jwLabel: j.jw_tier ?? 'red',
+            quotedValue: j.gross_quote ?? 0,
+            npPct: j.dna_margin ?? 0,
+            source: 'Unknown',
+            lat: suburbMatch?.lat,
+            lng: suburbMatch?.lng,
+          };
+        }).filter(j => j.lat && j.lng); // only jobs we can geo-locate
+        if (mapped.length > 0) setJobs(mapped);
+      })
+      .catch(() => {}); // keep seed data on error
+  }, []);
+
+  const filteredJobs = useMemo(() => jobs.filter(j => {
     if (filterType !== "all" && j.type !== filterType) return false;
     if (filterLabel !== "all" && j.jwLabel !== filterLabel) return false;
     return true;
-  }), [filterType, filterLabel]);
+  }), [filterType, filterLabel, jobs]);
 
   const suburbData = useMemo(() => {
     const map: Record<string, {jobs: typeof JOBS; npPcts: number[]; revenues: number[]}> = {};

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 // ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
 const C = {
   bg:        "#0e0e14",
@@ -19,8 +19,8 @@ const C = {
   blue:      "#60a5fa",
   purple:    "#a78bfa",
 };
-// ─── LIVE METRICS (replace with useBusinessContext() in Claude Code) ──────────
-const M = {
+// ─── LIVE METRICS (loaded from /api/metrics, defaults shown) ─────────────────
+let M = {
   profitAccount:            4600,
   cashTransactions:         24300,
   gpHrAvg3Jobs:             41,
@@ -497,11 +497,49 @@ function DetailPanel({ goal, onClose }: { goal: Goal; onClose: () => void }) {
 export default function CEOGoals() {
   const [selected, setSelected] = useState<string | null>("silverado");
   const [filter,   setFilter]   = useState("all");
-  const tiers     = Object.keys(TIER_META).sort((a,b) => TIER_META[a].order - TIER_META[b].order);
-  const unlockedN = GOALS.filter(g => !g.locked).length;
-  const overallPct = Math.round(GOALS.reduce((s,g) => s + goalPct(g), 0) / GOALS.length);
-  const selectedGoal = GOALS.find(g => g.id === selected);
-  const visible = (tier: string) => GOALS.filter(g => {
+  const [metrics,  setMetrics]  = useState({ ...M });
+
+  useEffect(() => {
+    fetch('/api/metrics')
+      .then(r => r.json())
+      .then(data => {
+        if (data && !data.error) {
+          Object.assign(M, data);
+          setMetrics({ ...M });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const metricMap: Partial<Record<string, keyof typeof M>> = {
+    "Profit account":         "profitAccount",
+    "Cash above $20k":        "consecutiveDaysAbove20k",
+    "GP/hr 3-job avg":        "gpHrAvg3Jobs",
+    "GP/hr avg":              "gpHrAvg3Jobs",
+    "Avg monthly revenue":    "avgMonthlyRevenue",
+    "Monthly revenue":        "avgMonthlyRevenue",
+    "Weeks off tools":        "weeksOffTools",
+    "Crew sentiment avg":     "crewSentimentAvg",
+    "Baylee leading solo":    "baylee_effort_avg",
+    "Baylee effort avg":      "baylee_effort_avg",
+    "Consecutive clean jobs": "consecutiveJobsClean",
+    "Job closes on time":     "consecutiveJobsClean",
+  };
+
+  const liveGoals = useMemo(() =>
+    GOALS.map(g => ({
+      ...g,
+      conditions: g.conditions.map(c => {
+        const key = metricMap[c.label];
+        return key ? { ...c, current: metrics[key] } : c;
+      }),
+    })), [metrics]);
+
+  const tiers      = Object.keys(TIER_META).sort((a,b) => TIER_META[a].order - TIER_META[b].order);
+  const unlockedN  = liveGoals.filter(g => !g.locked).length;
+  const overallPct = Math.round(liveGoals.reduce((s,g) => s + goalPct(g), 0) / liveGoals.length);
+  const selectedGoal = liveGoals.find(g => g.id === selected);
+  const visible = (tier: string) => liveGoals.filter(g => {
     if (filter === "locked")   return  g.locked && g.tier === tier;
     if (filter === "unlocked") return !g.locked && g.tier === tier;
     return g.tier === tier;
@@ -528,7 +566,7 @@ export default function CEOGoals() {
               <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "8px", color: C.textDim, marginTop: "2px" }}>UNLOCKED</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "22px", color: C.textMid, lineHeight: 1 }}>{GOALS.length - unlockedN}</div>
+              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "22px", color: C.textMid, lineHeight: 1 }}>{liveGoals.length - unlockedN}</div>
               <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "8px", color: C.textDim, marginTop: "2px" }}>LOCKED</div>
             </div>
           </div>

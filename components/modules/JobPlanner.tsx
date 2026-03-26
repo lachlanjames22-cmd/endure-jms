@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client'
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 const GOLD = "#b8935a", BG = "#080808", SURFACE = "#0c0c0f", SURFACE2 = "#111114";
 const SURFACE3 = "#0d0d10", TEXT = "#e8ddd0", TEXT_DIM = "#4e4a45", TEXT_MID = "#7a7570";
 const GREEN = "#4ade80", AMBER = "#fbbf24", RED = "#f87171", BLUE = "#60a5fa";
@@ -264,7 +264,7 @@ export default function JobPlanner() {
   const today = new Date();
   const [year,        setYear]        = useState(today.getFullYear());
   const [month,       setMonth]       = useState(today.getMonth());
-  const [jobs,        setJobs]        = useState(SEED_JOBS);
+  const [jobs,        setJobs]        = useState([]);
   const [schedule,    setSchedule]    = useState({});
   const [selectedTool,setSelectedTool]= useState(null);
   const [drag,        setDrag]        = useState(null);
@@ -273,6 +273,34 @@ export default function JobPlanner() {
   const [editId,      setEditId]      = useState(null);
   const [newJob,      setNewJob]      = useState(EMPTY_JOB);
   const [showWrap,    setShowWrap]    = useState(false);
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/jobs?status=won').then(r => r.json()),
+      fetch('/api/jobs?status=in_progress').then(r => r.json()),
+    ]).then(([won, inProgress]) => {
+      const all = [...(Array.isArray(won) ? won : []), ...(Array.isArray(inProgress) ? inProgress : [])];
+      if (all.length === 0) {
+        // Fall back to SEED_JOBS if DB is empty
+        setJobs(SEED_JOBS);
+        return;
+      }
+      const JOB_COLORS = ["green", "amber", "blue", "purple", "red", "gold", "teal", "violet"];
+      setJobs(all.map((j, i) => ({
+        id: j.id,
+        client: j.client_name,
+        suburb: j.suburb ?? '',
+        type: j.install_type === 'fullSubframe' ? 'New Deck' : j.install_type === 'redeck' ? 'Redeck' : 'New Deck',
+        quotedDays: Math.ceil((j.sqm ?? 30) / 10),
+        quotedHours: Math.ceil((j.sqm ?? 30) / 10) * 8,
+        quotedValue: j.gross_quote ?? 0,
+        actualDays: null,
+        actualHours: null,
+        notes: j.suburb ?? '',
+        crew: ['baylee', 'marius'],
+        colorId: JOB_COLORS[i % JOB_COLORS.length],
+      })));
+    }).catch(() => setJobs(SEED_JOBS));
+  }, []);
   function prevMonth() { if (month === 0) { setYear(y => y-1); setMonth(11); } else setMonth(m => m-1); }
   function nextMonth() { if (month === 11) { setYear(y => y+1); setMonth(0); } else setMonth(m => m+1); }
   const dim   = daysInMonth(year, month);

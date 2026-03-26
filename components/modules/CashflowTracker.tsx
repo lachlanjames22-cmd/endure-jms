@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart } from "recharts";
 // ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
 const C = {
@@ -20,8 +20,8 @@ const C = {
   purple:   "#a78bfa",
 };
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const TODAY        = new Date("2026-03-09");
-const OPENING_BAL  = 24300;
+const TODAY        = new Date();
+const OPENING_BAL  = 0; // replaced by DB fetch
 const PAYROLL_AMT  = 3886.89;
 const OPEX_MONTHLY = 8714.93;
 const WARN_LINE    = 20000;
@@ -236,7 +236,7 @@ type DragState =
   | null;
 
 export default function CashflowTracker() {
-  const [events,       setEvents]       = useState<CashflowEvent[]>(SEED_EVENTS);
+  const [events,       setEvents]       = useState<CashflowEvent[]>([]);
   const [view,         setView]         = useState("chart");
   const [showAdd,      setShowAdd]      = useState(false);
   const [showJobPick,  setShowJobPick]  = useState<{ date: string } | null>(null);
@@ -247,16 +247,30 @@ export default function CashflowTracker() {
   const [overlays,     setOverlays]     = useState({ liability: true, profit: false, credit: false });
   const toggleOverlay = (key: string) => setOverlays(o => ({ ...o, [key]: !o[key as keyof typeof o] }));
   const [recurringEvents, setRecurringEvents] = useState<CashflowEvent[]>(() => buildRecurringEvents(TODAY, END_DATE));
+  const [openingBalance, setOpeningBalance] = useState(OPENING_BAL);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/cashflow/events')
+      .then(r => r.json())
+      .then(data => {
+        if (data.events) setEvents(data.events);
+        if (data.opening_balance) setOpeningBalance(data.opening_balance);
+      })
+      .catch(() => {}) // silent fail — show empty state
+      .finally(() => setLoading(false));
+  }, []);
+
   const taxAccountBal = 11200;
 
   const chartData = useMemo(
-    () => buildChartData(events, recurringEvents, OPENING_BAL, TODAY, END_DATE, taxAccountBal),
-    [events, recurringEvents]
+    () => buildChartData(events, recurringEvents, openingBalance, TODAY, END_DATE, taxAccountBal),
+    [events, recurringEvents, openingBalance]
   );
   const chartDataThin = useMemo(() => chartData.filter((_,i) => i % 3 === 0 || chartData[i].events.length > 0), [chartData]);
   const minBalance = Math.min(...chartData.map(d => d.balance));
   const maxBalance = Math.max(...chartData.map(d => d.balance));
-  const finalBalance = chartData[chartData.length - 1]?.balance || OPENING_BAL;
+  const finalBalance = chartData[chartData.length - 1]?.balance || openingBalance;
 
   const totalIn  = events.filter(e => e.amount > 0).reduce((s,e) => s + e.amount, 0)
                  + recurringEvents.filter(e => e.amount > 0).reduce((s,e) => s + e.amount, 0);

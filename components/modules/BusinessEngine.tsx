@@ -96,6 +96,24 @@ export default function BusinessEngine() {
   const [expenses, setExpenses] = useState(DEFAULT_EXPENSES);
   const [days, setDays] = useState(DEFAULT_DAYS);
   const [ownerSalary, setOwnerSalary] = useState(1884.62);
+  useEffect(() => {
+    fetch('/api/crew')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCrew(data.map(c => ({
+            id: c.id,
+            name: c.name,
+            type: c.type,
+            baseRate: c.baseRate,
+            loadedRate: c.loadedRate,
+            hoursPerWeek: c.hoursPerWeek,
+            active: c.active,
+          })));
+        }
+      })
+      .catch(() => {}); // keep DEFAULT_CREW on error
+  }, []);
   const [chargeout, setChargeout] = useState(2400);
   const [avgJobValue, setAvgJobValue] = useState(38000);
   const [jobsPerMonth, setJobsPerMonth] = useState(2.2);

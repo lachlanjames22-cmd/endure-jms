@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { CashflowType, CashflowCategory } from '@/lib/types/database'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -61,6 +62,40 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.status === 'complete' && oldStatus !== 'complete') {
     const admin = createAdminClient()
     await admin.rpc('complete_job_snapshot', { p_job_id: id })
+  }
+
+  // If transitioning to won, auto-generate 4 cashflow claim events (if not already created)
+  const jobValue = data.quoted_total_value ?? 0
+  if (body.status === 'won' && oldStatus !== 'won' && jobValue > 0) {
+    const { count } = await supabase
+      .from('cashflow_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('job_id', id)
+      .eq('category', 'deposit' as CashflowCategory)
+
+    if ((count ?? 0) === 0) {
+      const today = new Date()
+      const label = data.client_name ?? 'Job'
+      const claims: Array<{ pct: number; name: string; category: CashflowCategory; days: number }> = [
+        { pct: 0.10, name: '10% Deposit',   category: 'deposit',         days: 0  },
+        { pct: 0.50, name: '50% Materials', category: 'materials',       days: 7  },
+        { pct: 0.20, name: '20% Subframe',  category: 'subframe_claim',  days: 21 },
+        { pct: 0.20, name: 'Final',         category: 'completion_claim', days: 35 },
+      ]
+      const events = claims.map(c => {
+        const d = new Date(today)
+        d.setDate(d.getDate() + c.days)
+        return {
+          job_id: id,
+          type: 'inflow' as CashflowType,
+          category: c.category,
+          label: `${label} — ${c.name}`,
+          amount: Math.round(jobValue * c.pct),
+          scheduled_date: d.toISOString().split('T')[0],
+        }
+      })
+      await supabase.from('cashflow_events').insert(events)
+    }
   }
 
   return NextResponse.json(data)
