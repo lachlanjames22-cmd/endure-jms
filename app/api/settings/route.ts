@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/lib/types/database'
 
 // Keys that Jarvis (and the settings UI) are allowed to update via API
 const ALLOWED_KEYS = [
@@ -33,13 +34,30 @@ export async function PATCH(req: NextRequest) {
 
   for (const key of ALLOWED_KEYS) {
     if (!(key in body)) continue
-    const value = body[key]
+    const value = body[key] as Json
 
-    const { error } = await admin
+    // Check if the row exists first
+    const { data: existing } = await admin
       .from('settings')
-      .upsert({ key, value: value as string | number | boolean }, { onConflict: 'key' })
+      .select('key')
+      .eq('key', key)
+      .maybeSingle()
 
-    if (error) return NextResponse.json({ error: `Failed to update ${key}: ${error.message}` }, { status: 500 })
+    if (existing) {
+      // Row exists — update it
+      const { error } = await admin
+        .from('settings')
+        .update({ value })
+        .eq('key', key)
+      if (error) return NextResponse.json({ error: `Failed to update ${key}: ${error.message}` }, { status: 500 })
+    } else {
+      // Row doesn't exist — insert it
+      const { error } = await admin
+        .from('settings')
+        .insert({ key, value })
+      if (error) return NextResponse.json({ error: `Failed to create ${key}: ${error.message}` }, { status: 500 })
+    }
+
     updated[key] = value
   }
 
