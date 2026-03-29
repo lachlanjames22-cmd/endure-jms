@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { formatCurrency, formatPercent, formatDateShort, daysSince, gpTrafficLight } from '@/lib/utils'
 import type { Job } from '@/lib/types/database'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, TrendingUp, DollarSign, Target, Percent } from 'lucide-react'
 
 interface JobWithProduct extends Job {
   products?: { name: string } | null
@@ -18,31 +17,34 @@ interface Props {
 }
 
 export function Pipeline({ jobs: initialJobs }: Props) {
-  const [jobs, setJobs] = useState(initialJobs)
+  const [jobs] = useState(initialJobs)
   const [filter, setFilter] = useState<FilterStatus>('all')
 
   const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter)
 
-  const totalLabourValue = jobs
-    .filter(j => j.status === 'quoted')
-    .reduce((s, j) => s + (j.quoted_labour_value ?? 0), 0)
+  // ── Metrics ──────────────────────────────────────────────────────────────────
+  const quotedJobs  = jobs.filter(j => j.status === 'quoted')
+  const wonJobs     = jobs.filter(j => j.status === 'won')
+  const lostJobs    = jobs.filter(j => j.status === 'lost')
+  const decidedJobs = [...wonJobs, ...lostJobs]
 
-  const winRate = (() => {
-    const decided = jobs.filter(j => ['won', 'lost'].includes(j.status))
-    const won = jobs.filter(j => j.status === 'won')
-    return decided.length > 0 ? won.length / decided.length : null
-  })()
+  const pipelineValue = quotedJobs.reduce((s, j) => s + (j.quoted_total_value ?? 0), 0)
+  const wonValue      = wonJobs.reduce((s, j) => s + (j.quoted_total_value ?? 0), 0)
+  const winRate       = decidedJobs.length > 0 ? wonJobs.length / decidedJobs.length : null
+
+  const allDeals   = jobs.filter(j => (j.quoted_total_value ?? 0) > 0)
+  const avgDeal    = allDeals.length > 0
+    ? allDeals.reduce((s, j) => s + (j.quoted_total_value ?? 0), 0) / allDeals.length
+    : 0
+
+  const avgGP = wonJobs.filter(j => j.quoted_gp_pct != null).length > 0
+    ? wonJobs.reduce((s, j) => s + (j.quoted_gp_pct ?? 0), 0) / wonJobs.filter(j => j.quoted_gp_pct != null).length
+    : null
 
   return (
-    <div className="rounded-lg border border-[#161616] bg-[#0c0c0c] p-6 space-y-4">
+    <div className="rounded-lg border border-[#161616] bg-[#0c0c0c] p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-medium text-[#e8ddd0]">Pipeline</h2>
-          <p className="text-xs text-[#444] mt-0.5">
-            {formatCurrency(totalLabourValue)} quoted labour value
-            {winRate != null && ` · ${Math.round(winRate * 100)}% win rate`}
-          </p>
-        </div>
+        <h2 className="text-sm font-medium text-[#e8ddd0]">Pipeline</h2>
         <div className="flex gap-1">
           {(['all', 'quoted', 'won', 'lost'] as const).map(s => (
             <button
@@ -53,19 +55,76 @@ export function Pipeline({ jobs: initialJobs }: Props) {
               }`}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
+              {s !== 'all' && (
+                <span className="ml-1 text-[#333]">
+                  ({s === 'quoted' ? quotedJobs.length : s === 'won' ? wonJobs.length : lostJobs.length})
+                </span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="space-y-2 max-h-[600px] overflow-y-auto">
+      {/* BDM Metrics Bar */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-md border border-[#161616] bg-[#111] p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <DollarSign className="h-3 w-3 text-[#444]" />
+            <p className="text-[10px] text-[#444] uppercase tracking-wider">Pipeline</p>
+          </div>
+          <p className="font-mono text-sm font-medium text-[#e8ddd0]">{formatCurrency(pipelineValue)}</p>
+          <p className="text-[10px] text-[#333] mt-0.5">{quotedJobs.length} quotes open</p>
+        </div>
+
+        <div className="rounded-md border border-[#161616] bg-[#111] p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp className="h-3 w-3 text-[#444]" />
+            <p className="text-[10px] text-[#444] uppercase tracking-wider">Won</p>
+          </div>
+          <p className="font-mono text-sm font-medium text-[#e8ddd0]">{formatCurrency(wonValue)}</p>
+          <p className="text-[10px] text-[#333] mt-0.5">{wonJobs.length} job{wonJobs.length !== 1 ? 's' : ''} won</p>
+        </div>
+
+        <div className="rounded-md border border-[#161616] bg-[#111] p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Target className="h-3 w-3 text-[#444]" />
+            <p className="text-[10px] text-[#444] uppercase tracking-wider">Win Rate</p>
+          </div>
+          <p className="font-mono text-sm font-medium text-[#e8ddd0]">
+            {winRate != null ? `${Math.round(winRate * 100)}%` : '—'}
+          </p>
+          <p className="text-[10px] text-[#333] mt-0.5">
+            {decidedJobs.length > 0 ? `${wonJobs.length}/${decidedJobs.length} decided` : 'no decisions yet'}
+          </p>
+        </div>
+
+        <div className="rounded-md border border-[#161616] bg-[#111] p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Percent className="h-3 w-3 text-[#444]" />
+            <p className="text-[10px] text-[#444] uppercase tracking-wider">Avg Deal</p>
+          </div>
+          <p className="font-mono text-sm font-medium text-[#e8ddd0]">{formatCurrency(avgDeal)}</p>
+          <p className={`text-[10px] mt-0.5 ${
+            avgGP != null
+              ? gpTrafficLight(avgGP) === 'green' ? 'text-green-500'
+              : gpTrafficLight(avgGP) === 'amber' ? 'text-amber-400'
+              : 'text-red-400'
+              : 'text-[#333]'
+          }`}>
+            {avgGP != null ? `${formatPercent(avgGP)} avg GP` : 'no GP data'}
+          </p>
+        </div>
+      </div>
+
+      {/* Job list */}
+      <div className="space-y-2 max-h-[500px] overflow-y-auto">
         {filtered.length === 0 && (
           <p className="text-sm text-[#444] py-8 text-center">No quotes yet</p>
         )}
         {filtered.map(job => {
           const gp = job.quoted_gp_pct
           const daysOld = daysSince(job.quote_sent_date)
-          const isOverdue = job.status === 'quoted' && daysOld != null && daysOld > 10
+          const isOverdue  = job.status === 'quoted' && daysOld != null && daysOld > 10
           const isExpiring = job.status === 'quoted' && daysOld != null && daysOld > 25
 
           return (
@@ -91,13 +150,15 @@ export function Pipeline({ jobs: initialJobs }: Props) {
 
               <div className="flex items-center gap-4">
                 <div>
-                  <p className="text-[#444]">Labour value</p>
-                  <p className="font-mono text-[#e8ddd0]">{formatCurrency(job.quoted_labour_value)}</p>
-                </div>
-                <div>
                   <p className="text-[#444]">Total ex GST</p>
-                  <p className="font-mono text-[#e8ddd0]">{formatCurrency(job.quoted_total_value)}</p>
+                  <p className="font-mono text-[#e8ddd0] font-medium">{formatCurrency(job.quoted_total_value)}</p>
                 </div>
+                {job.quoted_labour_value && (
+                  <div>
+                    <p className="text-[#444]">Labour</p>
+                    <p className="font-mono text-[#e8ddd0]">{formatCurrency(job.quoted_labour_value)}</p>
+                  </div>
+                )}
                 {gp != null && (
                   <div>
                     <p className="text-[#444]">GP</p>
@@ -124,9 +185,7 @@ export function Pipeline({ jobs: initialJobs }: Props) {
                     Sent {formatDateShort(job.quote_sent_date)}
                     {daysOld != null && ` (${daysOld}d ago)`}
                   </span>
-                  {isExpiring && (
-                    <Badge variant="red">Expiring</Badge>
-                  )}
+                  {isExpiring && <Badge variant="red">Expiring</Badge>}
                   {isOverdue && !isExpiring && (
                     <div className="flex items-center gap-1 text-amber-400">
                       <AlertTriangle className="h-3 w-3" />

@@ -341,7 +341,6 @@ export default function JobDNA() {
       .then(data => {
         if (!Array.isArray(data) || data.length === 0) return;
         const dbJobs: Job[] = data
-          .filter(j => j.dna_reviewed_at !== null)
           .map(j => ({
             id:          j.id,
             date:        (j.completion_date || j.won_date || j.created_at || '').slice(0, 7),
@@ -367,7 +366,7 @@ export default function JobDNA() {
           }));
         setJobs(dbJobs);
       })
-      .catch(() => {}); // Keep seed data on error
+      .catch(err => console.error('[JobDNA] fetch failed:', err));
   }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formJob, setFormJob] = useState<Omit<Job,'id'>>(EMPTY_JOB);
